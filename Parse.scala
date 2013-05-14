@@ -64,20 +64,11 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def defStmt = (
-    "entry".? ~ "def" ~ ident ~ "(" ~ typedParamList.? ~ ")" ~ typeStmt.? ~ "{" ~ semiStmt.* ~ "}"
+    "entry".? ~ "def" ~ ident ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ "{" ~ semiStmt.* ~ "}"
     ^^ { case isEntry ~ _ ~ ident ~ _ ~ typedParamList ~ _ ~ typeStmt ~ _ ~ semiStmt ~ _ =>
       DefStmt(isEntry, ident, typedParamList, typeStmt, semiStmt)
     }
   )
-
-  def typedParamList = (
-    typedParam ~ followTypedParam.*
-    ^^ {
-      case param ~ rest => param :: rest
-    }
-  )
-
-  def followTypedParam = "," ~> typedParam
 
   def typedParam = (
     ident ~ typeStmt
@@ -105,17 +96,18 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def forStmt = (
-    "for" ~ "(" ~ varStmtList ~ ";" ~ expression ~ ";" ~ assignStmt ~ ")" ~ semiStmt
+    "for" ~ "(" ~ mkList(varStmt, ",") ~ ";" ~ expression ~ ";" ~ mkList(assignStmt, ",") ~ ")" ~ semiStmt
     ^^ { case _ ~ _ ~ varStmts ~ _ ~ expr1 ~ _ ~ assign ~ _ ~ stmt => ForStmt(varStmts, expr1, assign, stmt) }
   )
+
+  def mkList[T](rule : Parser[T], op : String) =
+    rule ~ followMkList(rule,op).* ^^ { case fst ~ rest => fst :: rest }
+  def followMkList[T](rule : Parser[T], op : String) = op ~> rule
 
   def whileStmt = (
     "while" ~ "(" ~  expression ~ ")" ~ semiStmt
     ^^ { case _ ~ _ ~  expr1 ~ _ ~ stmt => WhileStmt(expr1, stmt) }
   )
-
-  def varStmtList = varStmt ~ followVarStmt.* ^^ { case fst ~ rest => fst :: rest }
-  def followVarStmt = "," ~> varStmt
 
   def assignOp = (
       "="  ^^^ Equal()
@@ -137,11 +129,7 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case _ ~ ident ~ maybeGeneric => Type(ident, maybeGeneric) }
   )
 
-  def qualifiedIdent = (
-    ident ~ followIdent.*
-    ^^ { case param ~ rest => param :: rest }
-  )
-  def followIdent = "." ~> ident
+  def qualifiedIdent = mkList(ident, ".")
 
   def expression : Parser[Expression] = equal
 
@@ -155,11 +143,7 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(ident, generic, params) }
   )
 
-  def parameters = (
-    expression ~ followParam.*
-    ^^ { case param ~ rest => param :: rest }
-  )
-  def followParam = "," ~> expression
+  def parameters = mkList(expression, ",")
 
   def fact : Parser[Expression] = (
       funcCall
