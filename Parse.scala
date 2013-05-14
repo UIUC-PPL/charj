@@ -120,14 +120,7 @@ object Parse extends StandardTokenParsers with App {
 
   def generic : Parser[List[Type]] = "[" ~> qualifiedIdentList <~ "]"
 
-  def qualifiedIdentList = (
-    qualifiedIdent ~ generic.? ~ followQualifiedIdent.*
-    ^^ { case ident ~ maybeGeneric ~ rest => Type(ident, maybeGeneric) :: rest }
-  )
-  def followQualifiedIdent = (
-    "," ~ qualifiedIdent ~ generic.?
-    ^^ { case _ ~ ident ~ maybeGeneric => Type(ident, maybeGeneric) }
-  )
+  def qualifiedIdentList = mkList(qualifiedIdent ~ generic.? ^^ { case ident ~ maybeGeneric => Type(ident, maybeGeneric) }, ",")
 
   def qualifiedIdent = mkList(ident, ".")
 
