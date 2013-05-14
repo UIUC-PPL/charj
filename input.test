@@ -17,12 +17,26 @@ class Test {
             test();
             if (a + 5) test2();
             else test3();
-            
+
+            for (var i = 0; i + 5 < 10; i += 1) {
+              test = 5;
+            }
+
+            for (var i = 0, var j = 0;
+                 i < 10 && j < 20;
+                 i += 1) ;
+
             if (aa) test5();
             if (b + 2 == test && bcd) {
                var aaa : int = test2();
                bbb();
             }
+
+            while (a < 10) {
+                  var a = 10;
+                  a += 12;
+            }
+
             Abc.test();
             var test : Ref[Abc] = new Abc();
             val yyy : String = "test";

@@ -11,16 +11,18 @@ import scala.language.postfixOps
 object Parse extends StandardTokenParsers with App {
   lexical.reserved += ("class", "entry", "def", "val", "var",
                        "chare", "mainchare", "charearray",
-                       "if", "else", "true", "false", "new")
+                       "if", "else", "true", "false", "new",
+                       "for", "while")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")",
-                         ":", ".", ",", ";", "&&", "||", "!")
- 
+                         ":", ".", ",", ";", "&&", "||", "!",
+                         "<", "<=", ">", ">=", "+=", "-=")
+
   val input = Source.fromFile("../input.test").getLines.reduceLeft[String](_ + '\n' + _)
   val tokens = new lexical.Scanner(input)
- 
+
   val result = phrase(program)(tokens)
- 
+
   result match {
     case Success(tree, _) => println(tree)
     case e: NoSuccess => {
@@ -29,7 +31,7 @@ object Parse extends StandardTokenParsers with App {
   }
 
   def program = outerStmt.* ^^ { case stmts => StmtList(stmts) }
-  
+
   def outerStmt = (
     classStmt | chareStmt
   )
@@ -42,9 +44,12 @@ object Parse extends StandardTokenParsers with App {
 
   def semiStmt : Parser[Stmt] = (
       varStmt <~ ";"
+    | ";" ^^^ EmptyStmt()
     | assignStmt <~ ";"
     | expression <~ ";" ^^ { case expr => ExprStmt(expr) }
     | ifStmt
+    | forStmt
+    | whileStmt
     | "{" ~> semiStmt.* <~ "}"   ^^ { case stmts  => StmtList(stmts) }
   )
 
@@ -85,7 +90,7 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def varStmt = (
-    declStart ~ ident ~ typeStmt ~ "=" ~ expression
+    declStart ~ ident ~ typeStmt.? ~ "=" ~ expression
     ^^ { case mutable ~ ident ~ typeStmt ~ _ ~ expr => DeclStmt(mutable, ident, typeStmt, expr) }
   )
 
@@ -99,8 +104,26 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case _ ~ _ ~ cond ~ _ ~ expr1 ~ expr2 => IfStmt(cond, expr1, expr2) }
   )
 
-  def assignStmt = qualifiedIdent ~ "=" ~ expression ^^ { case ident ~ _ ~ expr => AssignStmt(ident, expr) }
-    
+  def forStmt = (
+    "for" ~ "(" ~ varStmtList ~ ";" ~ expression ~ ";" ~ assignStmt ~ ")" ~ semiStmt
+    ^^ { case _ ~ _ ~ varStmts ~ _ ~ expr1 ~ _ ~ assign ~ _ ~ stmt => ForStmt(varStmts, expr1, assign, stmt) }
+  )
+
+  def whileStmt = (
+    "while" ~ "(" ~  expression ~ ")" ~ semiStmt
+    ^^ { case _ ~ _ ~  expr1 ~ _ ~ stmt => WhileStmt(expr1, stmt) }
+  )
+
+  def varStmtList = varStmt ~ followVarStmt.* ^^ { case fst ~ rest => fst :: rest }
+  def followVarStmt = "," ~> varStmt
+
+  def assignOp = (
+      "="  ^^^ Equal()
+    | "+=" ^^^ PEqual()
+    | "-=" ^^^ MEqual()
+  )
+  def assignStmt = qualifiedIdent ~ assignOp ~ expression ^^ { case id ~ op ~ expr => AssignStmt(id, op, expr) }
+
   def elseStmt = "else" ~> semiStmt
 
   def generic : Parser[List[Type]] = "[" ~> qualifiedIdentList <~ "]"
@@ -120,7 +143,7 @@ object Parse extends StandardTokenParsers with App {
   )
   def followIdent = "." ~> ident
 
-  def expression : Parser[Expression] = bComp
+  def expression : Parser[Expression] = equal
 
   def funcCall = (
     qualifiedIdent ~ "(" ~ parameters.? ~ ")"
@@ -151,8 +174,20 @@ object Parse extends StandardTokenParsers with App {
     | "!" ~> expression          ^^ { case expr   => NotExpr(expr) }
   )
 
+  def comp : Parser[Expression] = (
+    fact ~ rep("<" ~ fact | "<=" ~ fact | ">" ~ fact | ">=" ~ fact)
+    ^^ {
+      case el ~ rest => (el /: rest) {
+        case (x, "<" ~ y) =>  LesExpr(x, y)
+        case (x, "<=" ~ y) => LeqExpr(x, y)
+        case (x, ">" ~ y) =>  GesExpr(x, y)
+        case (x, ">=" ~ y) => GeqExpr(x, y)
+      }
+    }
+  )
+
   def bAnd : Parser[Expression] = (
-    fact ~ rep("&&" ~ fact)
+    comp ~ rep("&&" ~ comp)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, "&&" ~ y) => AndExpr(x, y)
@@ -189,7 +224,7 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def bComp : Parser[Expression] = (
+  def equal : Parser[Expression] = (
     expr ~ rep("==" ~ expr)
     ^^ {
       case el ~ rest => (el /: rest) {
@@ -197,6 +232,4 @@ object Parse extends StandardTokenParsers with App {
       }
     }
   )
-
-
 }
