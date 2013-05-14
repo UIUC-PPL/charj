@@ -1,0 +1,39 @@
+class Test {
+      val test : int = 5;
+      def test() : test.A[B] {
+          var aaa : int = (5 + 5 * 10) / 2 * 2;
+          var abc : xxx = test1 ( 88 );
+          var iii : Array[Int, Int] = test2() + -test4 + (!test3(2 + 4, abc(4), a) -2) + sqrt(45);
+          test(2, 3, abc());
+          5 + 6 * abc();
+          {
+            abc;
+          }
+      }
+      entry def method1() {
+            print("test is a" + test);
+      }
+      def method2(abc : int, test : Ref[String[Int]]) {
+            test();
+            if (a + 5) test2();
+            else test3();
+            
+            if (aa) test5();
+            if (b + 2 == test && bcd) {
+               var aaa : int = test2();
+               bbb();
+            }
+            Abc.test();
+            var test : Ref[Abc] = new Abc();
+            val yyy : String = "test";
+      }
+}
+
+chare Abc {
+      def abc() { }
+      def bef(test : int) { }
+      def yyy(test1 : Box[int], test2 : YYY) : int {
+         test = 2;
+         Abc.abc = 10;
+      }
+}
