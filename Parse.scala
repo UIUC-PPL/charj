@@ -12,7 +12,7 @@ object Parse extends StandardTokenParsers with App {
   lexical.reserved += ("class", "entry", "def", "val", "var",
                        "chare", "mainchare", "charearray",
                        "if", "else", "true", "false", "new",
-                       "for", "while")
+                       "for", "while", "return")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")",
                          ":", ".", ",", ";", "&&", "||", "!",
@@ -50,6 +50,7 @@ object Parse extends StandardTokenParsers with App {
     | ifStmt
     | forStmt
     | whileStmt
+	| returnStmt
     | "{" ~> semiStmt.* <~ "}"   ^^ { case stmts  => StmtList(stmts) }
   )
 
@@ -108,7 +109,10 @@ object Parse extends StandardTokenParsers with App {
     "while" ~ "(" ~  expression ~ ")" ~ semiStmt
     ^^ { case _ ~ _ ~  expr1 ~ _ ~ stmt => WhileStmt(expr1, stmt) }
   )
-
+  def returnStmt = (
+	"return" ~ fact.? ~ ";"
+	^^ { case _ ~ facts ~ _ => ReturnStmt(facts) }
+  )
   def assignOp = (
       "="  ^^^ Equal()
     | "+=" ^^^ PEqual()

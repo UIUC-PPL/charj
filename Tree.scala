@@ -16,6 +16,7 @@ case class AssignStmt(lval : List[String], op : AssignOp, rval : Expression) ext
 case class IfStmt(cond : Expression, expr1 : Stmt, expr2 : Option[Stmt]) extends Stmt
 case class ForStmt(decls : List[Stmt], expr1 : Expression, cont : List[Stmt], stmt : Stmt) extends Stmt
 case class WhileStmt(expr1 : Expression, stmt : Stmt) extends Stmt
+case class ReturnStmt(fact : Option[Expression]) extends Stmt
 case class EmptyStmt() extends Stmt
 
 case class TypeParam(name : String, typ : Type)

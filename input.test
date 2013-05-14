@@ -40,6 +40,7 @@ class Test {
             Abc.test();
             var test : Ref[Abc] = new Abc();
             val yyy : String = "test";
+			return;
       }
 }
 
@@ -49,5 +50,6 @@ chare Abc {
       def yyy(test1 : Box[int], test2 : YYY) : int {
          test = 2;
          Abc.abc = 10;
+		 return test;
       }
 }
