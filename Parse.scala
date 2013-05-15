@@ -50,7 +50,7 @@ object Parse extends StandardTokenParsers with App {
     | ifStmt
     | forStmt
     | whileStmt
-	| returnStmt
+    | returnStmt <~ ";"
     | "{" ~> semiStmt.* <~ "}"   ^^ { case stmts  => StmtList(stmts) }
   )
 
@@ -110,8 +110,8 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case _ ~ _ ~  expr1 ~ _ ~ stmt => WhileStmt(expr1, stmt) }
   )
   def returnStmt = (
-	"return" ~ fact.? ~ ";"
-	^^ { case _ ~ facts ~ _ => ReturnStmt(facts) }
+    "return" ~ fact.?
+    ^^ { case _ ~ facts => ReturnStmt(facts) }
   )
   def assignOp = (
       "="  ^^^ Equal()
