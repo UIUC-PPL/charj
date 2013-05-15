@@ -110,8 +110,8 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case _ ~ _ ~  expr1 ~ _ ~ stmt => WhileStmt(expr1, stmt) }
   )
   def returnStmt = (
-    "return" ~ fact.?
-    ^^ { case _ ~ facts => ReturnStmt(facts) }
+    "return" ~ expression.?
+    ^^ { case _ ~ exp => ReturnStmt(exp) }
   )
   def assignOp = (
       "="  ^^^ Equal()
