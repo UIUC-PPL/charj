@@ -7,6 +7,7 @@ import scala.util.parsing._
 import scala.util.parsing.combinator.lexical._
 import scala.io._
 import scala.language.postfixOps
+import scala.util.parsing.input.Positional
 
 object Parse extends StandardTokenParsers with App {
   lexical.reserved += ("class", "entry", "def", "val", "var",
@@ -16,7 +17,7 @@ object Parse extends StandardTokenParsers with App {
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")",
                          ":", ".", ",", ";", "&&", "||", "!",
-                         "<", "<=", ">", ">=", "+=", "-=")
+                         "<", "<=", ">", ">=", "+=", "-=", "#")
 
   val input = Source.fromFile("../input.test").getLines.reduceLeft[String](_ + '\n' + _)
   val tokens = new lexical.Scanner(input)
@@ -24,25 +25,33 @@ object Parse extends StandardTokenParsers with App {
   val result = phrase(program)(tokens)
 
   result match {
-    case Success(tree, _) => println(tree)
+    case Success(tree, _) => {
+      println(tree)
+      val col = new Collector(tree)
+      col.start()
+      col.print(Tuple2(BaseContext.context, EmptyStmt()), 1)
+
+      val checker = new Checker(tree)
+      checker.start()
+    }
     case e: NoSuccess => {
       Console.err.println(e)
     }
   }
 
-  def program = outerStmt.* ^^ { case stmts => StmtList(stmts) }
+  def program = positioned(outerStmt.* ^^ { case stmts => StmtList(stmts) })
 
-  def outerStmt = (
+  def outerStmt = positioned(
     classStmt | chareStmt
   )
 
   def innerStmtList = innerStmt.*
 
-  def innerStmt = (
+  def innerStmt = positioned(
     defStmt | varStmt <~ ";"
   )
 
-  def semiStmt : Parser[Stmt] = (
+  def semiStmt : Parser[Stmt] = positioned(
       varStmt <~ ";"
     | ";" ^^^ EmptyStmt()
     | assignStmt <~ ";"
@@ -54,24 +63,32 @@ object Parse extends StandardTokenParsers with App {
     | "{" ~> semiStmt.* <~ "}"   ^^ { case stmts  => StmtList(stmts) }
   )
 
-  def classStmt = (
-    "class" ~ ident ~ "{" ~ innerStmtList ~ "}"
-    ^^ { case _ ~ ident ~ _ ~ stmts ~ _ => ClassStmt(ident, stmts) }
+  def isSystem =
+    "#".? ^^ {
+      case Some(x) => true
+      case None => false
+    }
+
+  def classStmt = positioned(
+    "class" ~ isSystem ~ ident ~ generic.? ~ typeStmt.? ~ "{" ~ innerStmtList ~ "}"
+    ^^ { case _ ~ isSystem ~ ident ~ generic ~ typeStmt ~ _ ~ stmts ~ _ =>
+      ClassStmt(ident, isSystem, generic, typeStmt, stmts)
+    }
   )
 
-  def chareStmt = (
+  def chareStmt = positioned(
     "chare" ~ ident ~ "{" ~ innerStmtList ~ "}"
     ^^ { case _ ~ ident ~ _ ~ stmts ~ _ => ChareStmt(ident, stmts) }
   )
 
-  def defStmt = (
+  def defStmt = positioned(
     "entry".? ~ "def" ~ ident ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ "{" ~ semiStmt.* ~ "}"
     ^^ { case isEntry ~ _ ~ ident ~ _ ~ typedParamList ~ _ ~ typeStmt ~ _ ~ semiStmt ~ _ =>
       DefStmt(isEntry, ident, typedParamList, typeStmt, semiStmt)
     }
   )
 
-  def typedParam = (
+  def typedParam = positioned(
     ident ~ typeStmt
     ^^ { case ident ~ typeStmt => TypeParam(ident, typeStmt) }
   )
@@ -81,22 +98,22 @@ object Parse extends StandardTokenParsers with App {
     | "val" ^^ { case _ => false }
   )
 
-  def varStmt = (
+  def varStmt = positioned(
     declStart ~ ident ~ typeStmt.? ~ "=" ~ expression
     ^^ { case mutable ~ ident ~ typeStmt ~ _ ~ expr => DeclStmt(mutable, ident, typeStmt, expr) }
   )
 
-  def typeStmt = (
+  def typeStmt = positioned(
     ":" ~ qualifiedIdent ~ generic.?
     ^^ { case _ ~ qualIdent ~ generic => Type(qualIdent, generic) }
   )
 
-  def ifStmt = (
+  def ifStmt = positioned(
     "if" ~ "(" ~ expression ~ ")" ~ semiStmt ~ elseStmt.?
     ^^ { case _ ~ _ ~ cond ~ _ ~ expr1 ~ expr2 => IfStmt(cond, expr1, expr2) }
   )
 
-  def forStmt = (
+  def forStmt = positioned(
     "for" ~ "(" ~ mkList(varStmt, ",") ~ ";" ~ expression ~ ";" ~ mkList(assignStmt, ",") ~ ")" ~ semiStmt
     ^^ { case _ ~ _ ~ varStmts ~ _ ~ expr1 ~ _ ~ assign ~ _ ~ stmt => ForStmt(varStmts, expr1, assign, stmt) }
   )
@@ -105,11 +122,11 @@ object Parse extends StandardTokenParsers with App {
     rule ~ followMkList(rule,op).* ^^ { case fst ~ rest => fst :: rest }
   def followMkList[T](rule : Parser[T], op : String) = op ~> rule
 
-  def whileStmt = (
+  def whileStmt = positioned(
     "while" ~ "(" ~  expression ~ ")" ~ semiStmt
     ^^ { case _ ~ _ ~  expr1 ~ _ ~ stmt => WhileStmt(expr1, stmt) }
   )
-  def returnStmt = (
+  def returnStmt = positioned(
     "return" ~ expression.?
     ^^ { case _ ~ exp => ReturnStmt(exp) }
   )
@@ -118,31 +135,33 @@ object Parse extends StandardTokenParsers with App {
     | "+=" ^^^ PEqual()
     | "-=" ^^^ MEqual()
   )
-  def assignStmt = qualifiedIdent ~ assignOp ~ expression ^^ { case id ~ op ~ expr => AssignStmt(id, op, expr) }
+  def assignStmt = positioned(
+    qualifiedIdent ~ assignOp ~ expression ^^ { case id ~ op ~ expr => AssignStmt(id, op, expr) }
+  )
 
   def elseStmt = "else" ~> semiStmt
 
   def generic : Parser[List[Type]] = "[" ~> qualifiedIdentList <~ "]"
 
-  def qualifiedIdentList = mkList(qualifiedIdent ~ generic.? ^^ { case ident ~ maybeGeneric => Type(ident, maybeGeneric) }, ",")
+  def qualifiedIdentList = mkList(positioned(qualifiedIdent ~ generic.? ^^ { case ident ~ maybeGeneric => Type(ident, maybeGeneric) }), ",")
 
   def qualifiedIdent = mkList(ident, ".")
 
   def expression : Parser[Expression] = equal
 
-  def funcCall = (
+  def funcCall = positioned(
     qualifiedIdent ~ "(" ~ parameters.? ~ ")"
     ^^ { case ident ~ _ ~ params ~ _ => FunExpr(ident, params) }
   )
 
-  def newExpr = (
+  def newExpr = positioned(
     "new" ~ qualifiedIdent ~ generic.? ~ "(" ~ parameters.? ~ ")"
     ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(ident, generic, params) }
   )
 
   def parameters = mkList(expression, ",")
 
-  def fact : Parser[Expression] = (
+  def fact : Parser[Expression] = positioned(
       funcCall
     | newExpr
     | "true"                     ^^ { case _      => True() }
@@ -155,7 +174,7 @@ object Parse extends StandardTokenParsers with App {
     | "!" ~> expression          ^^ { case expr   => NotExpr(expr) }
   )
 
-  def comp : Parser[Expression] = (
+  def comp : Parser[Expression] = positioned(
     fact ~ rep("<" ~ fact | "<=" ~ fact | ">" ~ fact | ">=" ~ fact)
     ^^ {
       case el ~ rest => (el /: rest) {
@@ -167,7 +186,7 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def bAnd : Parser[Expression] = (
+  def bAnd : Parser[Expression] = positioned(
     comp ~ rep("&&" ~ comp)
     ^^ {
       case el ~ rest => (el /: rest) {
@@ -176,7 +195,7 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def bOr : Parser[Expression] = (
+  def bOr : Parser[Expression] = positioned(
     bAnd ~ rep("||" ~ bAnd)
     ^^ {
       case el ~ rest => (el /: rest) {
@@ -185,7 +204,7 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def term : Parser[Expression] = (
+  def term : Parser[Expression] = positioned(
     bOr ~ rep("*" ~ bOr | "/" ~ bOr)
     ^^ {
       case el ~ rest => (el /: rest) {
@@ -195,7 +214,7 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def expr : Parser[Expression] = (
+  def expr : Parser[Expression] = positioned(
     term ~ rep("+" ~ term | "-" ~ term)
     ^^ {
       case el ~ rest => (el /: rest) {
@@ -205,7 +224,7 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def equal : Parser[Expression] = (
+  def equal : Parser[Expression] = positioned(
     expr ~ rep("==" ~ expr)
     ^^ {
       case el ~ rest => (el /: rest) {
