@@ -1,38 +1,6 @@
 package CharjParser
 
-object BaseContext {
-  var context : Context = new Context(None)
-}
-
 import scala.util.parsing.input.{Positional,Position}
-
-abstract class Symbol extends Positional
-
-case class BoundClassSymbol(cs : ClassSymbol, generics : List[Symbol]) extends Symbol {
-  override def toString = {
-    val genString = {
-      if (generics.size > 0)
-        "[" + generics.map(_.toString).foldLeft("")((b,a) => b + a) + "]"
-      else ""
-    }
-    "class \"" + cs.name + "\" (" + cs.arity + ") " + genString
-  }
-}
-
-case class ClassSymbol(name : String, arity : Int) extends Symbol {
-  var context : Context = new Context(None)
-  override def toString = "class \"" + name + "\" (" + arity + ") "
-}
-case class DefSymbol(name : String) extends Symbol {
-  var inTypes : List[BoundClassSymbol] = List()
-  var retType : BoundClassSymbol = null
-  override def toString = "def \"" + name + "\", in = " + inTypes + ", ret = " + retType
-}
-case class DeclSymbol(name : String, isMutable : Boolean) extends Symbol {
-  var declType : BoundClassSymbol = null
-  override def toString = (if (isMutable) "var" else "val") + " \"" + name + "\""
-}
-case class NoSymbol() extends Symbol
 
 trait GetName {
   def getName() = "stmt"
@@ -113,38 +81,3 @@ case class Equal() extends AssignOp
 case class PEqual() extends AssignOp
 case class MEqual() extends AssignOp
 
-class Context(parent : Option[Context]) {
-  import scala.collection.mutable.ListBuffer
-  var lst : ListBuffer[Symbol] = ListBuffer()
-  var children : ListBuffer[Tuple2[Context, Stmt]] = ListBuffer()
-
-  def checkAdd(sym : Symbol, pos : Position) {
-    if (lst contains sym) {
-      val other = lst.find(_ == sym).get
-      println("Semantic error: Conflict for " + sym + " at position " + pos + " and " + other.pos)
-    } else {
-      sym.setPos(pos)
-      lst += sym
-    }
-  }
-
-  def resolve(test : Symbol => Boolean) : Option[Symbol] = {
-    val lookup = lst find test
-    if (lookup.isEmpty) {
-      parent match {
-        case Some(x) => x.resolve(test)
-        case None => None
-      }
-    } else lookup
-  }
-
-  override def toString = lst.toString
-
-  // def resolve(cls : ClassSymbol, fun : DefSymbol) = {
-  //   for ((context, stmt) <- children) {
-  //     stmt match {
-  //       //case ClassStmt(name, _, _, _
-  //     }
-  //   }
-  // }
-}

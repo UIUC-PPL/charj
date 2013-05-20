@@ -125,7 +125,7 @@ class Checker(tree : Stmt) {
       context = cls.context
     } else {
       println("Semantic error: namespaces not supported at: " + cls.pos)
-      System.exit(1)
+      //System.exit(1)
     }
 
     val methodName = if (n.size == 1) n.head else n.tail.head
