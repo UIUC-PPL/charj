@@ -36,12 +36,13 @@ class Checker(tree : Stmt) {
           case None => resolveClassType(Type(List("unit"), None), tree)
         }
         if (t.sym == null) {
-          println("checker internal error")
-          System.exit(5)
+          println("Semantic error: could not resolve def types at " + t.pos)
+          //System.exit(5)
+        } else {
+          t.sym.inTypes = inTypes
+          t.sym.retType = retType
+          println(name + " def ret is " + retType + ", inTypes = " + inTypes)
         }
-        t.sym.inTypes = inTypes
-        t.sym.retType = retType
-        println(name + " def ret is " + retType + ", inTypes = " + inTypes)
       }
     }
   }
@@ -65,7 +66,7 @@ class Checker(tree : Stmt) {
           case _ => false
         })
         if (sym == NoSymbol())
-          println("Semantic error: " + name + " not resolved")
+          println("Semantic error: " + name + " not resolved at " + t.pos)
         else
           println("resolved " + name + " to " + thisSym.get + " with type: " + sym)
         thisSym.get.asInstanceOf[DeclSymbol].declType = sym.asInstanceOf[BoundClassSymbol]
@@ -118,12 +119,12 @@ class Checker(tree : Stmt) {
         println("resolved type for " + n.head + " = " + typ)
         context = typ.cs.context
       } else {
-        println("Semantic error: could not resolve type for: " + n.head)
+        println("Semantic error: could not resolve type for: " + n.head + " at " + cls.pos)
       }
     } else if (n.size == 1) {
       context = cls.context
     } else {
-      println("Semantic error: namespaces not supported\n")
+      println("Semantic error: namespaces not supported at: " + cls.pos)
       System.exit(1)
     }
 
@@ -144,7 +145,8 @@ class Checker(tree : Stmt) {
     })
 
     if (foundSym.isEmpty) {
-      println("Semantic error: def " + n + ", in = " + lst + ", unknown, searched context: " + context)
+      println("Semantic error: def " + n + ", in = " + lst + ", unknown at " + cls.pos +
+              ", searched context: " + context)
       NoSymbol()
       //System.exit(1)
     } else {
@@ -161,7 +163,7 @@ class Checker(tree : Stmt) {
     })
 
     if (sym.isEmpty) {
-      println("Semantic error: symbol " + str2 + " unknown")
+      println("Semantic error: symbol " + str2 + " unknown at " + cls.pos)
       //System.exit(1)
       None
     } else {
@@ -175,7 +177,7 @@ class Checker(tree : Stmt) {
   def resolveClassType(t : Type, tree : Stmt) : BoundClassSymbol = {
     // @todo for now namespaces for types is not supported
     if (t.name.size != 1) {
-      println("Semantic error: type " + t + " not supported")
+      println("Semantic error: type " + t + " not supported at " + t.pos)
       return null
     }
 
