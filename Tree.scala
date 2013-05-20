@@ -7,20 +7,29 @@ object BaseContext {
 import scala.util.parsing.input.{Positional,Position}
 
 abstract class Symbol extends Positional
-case class ClassSymbol(name : String, arity : Int, generics : List[Symbol]) extends Symbol {
+
+case class BoundClassSymbol(cs : ClassSymbol, generics : List[Symbol]) extends Symbol {
   override def toString = {
     val genString = {
       if (generics.size > 0)
         "[" + generics.map(_.toString).foldLeft("")((b,a) => b + a) + "]"
       else ""
     }
-    "class \"" + name + "\"" + genString
+    "class \"" + cs.name + "\" (" + cs.arity + ") " + genString
   }
 }
+
+case class ClassSymbol(name : String, arity : Int) extends Symbol {
+  var context : Context = new Context(None)
+  override def toString = "class \"" + name + "\" (" + arity + ") "
+}
 case class DefSymbol(name : String) extends Symbol {
-  override def toString = "def \"" + name + "\""
+  var inTypes : List[BoundClassSymbol] = List()
+  var retType : BoundClassSymbol = null
+  override def toString = "def \"" + name + "\", in = " + inTypes + ", ret = " + retType
 }
 case class DeclSymbol(name : String, isMutable : Boolean) extends Symbol {
+  var declType : BoundClassSymbol = null
   override def toString = (if (isMutable) "var" else "val") + " \"" + name + "\""
 }
 case class NoSymbol() extends Symbol
@@ -35,6 +44,7 @@ abstract class Stmt extends Positional with GetName {
 
 case class ClassStmt(name : String, isSystem : Boolean, generic : Option[List[Type]],
                      parent : Option[Type], lst : List[Stmt]) extends Stmt {
+  var sym : ClassSymbol = null
   override def getName() = pos + "-> class " + name
 }
 case class ChareStmt(name : String, lst : List[Stmt]) extends Stmt {
@@ -45,9 +55,11 @@ case class DefStmt(isEntry : Option[String],
                    nthunks : Option[List[TypeParam]],
                    ret : Option[Type],
                    stmts : List[Stmt]) extends Stmt {
+  var sym : DefSymbol = null
   override def getName() = pos + "-> def " + name
 }
 case class DeclStmt(isMutable : Boolean, name : String, typ : Option[Type], expr : Expression) extends Stmt {
+  var sym : DeclSymbol = null
   override def getName() = pos + "-> " + (if (isMutable) "var" else "val") + " " + name
 }
 case class StmtList(lst : List[Stmt]) extends Stmt {
@@ -125,6 +137,8 @@ class Context(parent : Option[Context]) {
       }
     } else lookup
   }
+
+  override def toString = lst.toString
 
   // def resolve(cls : ClassSymbol, fun : DefSymbol) = {
   //   for ((context, stmt) <- children) {

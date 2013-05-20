@@ -26,9 +26,13 @@ object Parse extends StandardTokenParsers with App {
 
   result match {
     case Success(tree, _) => {
+      println("--- successfully parsed AST ---")
       println(tree)
+
+      println("--- begin complete symbol collection ---")
       val col = new Collector(tree)
       col.start()
+      println("--- symbol collections in nested contexts ---")
       col.print(Tuple2(BaseContext.context, EmptyStmt()), 1)
 
       val checker = new Checker(tree)

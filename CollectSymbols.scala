@@ -23,20 +23,24 @@ class Collector(tree : Stmt) {
     tree.context = context
     tree match {
       case StmtList(lst) => traverseTree(lst, context)
-      case ClassStmt(name, _, generic, _, lst) => {
+      case t@ClassStmt(name, _, generic, _, lst) => {
         val arity = if (generic.isEmpty) 0 else generic.get.size
         val con = newContext(context, tree)
         if (!generic.isEmpty)
           for (gen <- generic.get)
             addClass(con, gen.name.head, 0, gen.pos)
-        addClass(context, name, arity, tree.pos)
+        t.sym = addClass(context, name, arity, tree.pos)
+        t.sym.context = con
+        t.context = con
         traverseTree(lst, con)
       }
-      case DefStmt(_, name, _, _, lst) => {
-        addDef(context, name, tree.pos)
+      case t@DefStmt(_, name, _, _, lst) => {
+        t.sym = addDef(context, name, tree.pos)
         traverseTree(lst, newContext(context, tree))
       }
-      case DeclStmt(mutable, name, _, expr) => addDecl(context, name, tree.pos, mutable)
+      case t@DeclStmt(mutable, name, _, expr) => {
+        t.sym = addDecl(context, name, tree.pos, mutable)
+      }
       case ForStmt(decls, _, cont, stmt) => {
         val con = newContext(context, tree)
         traverseTree(decls, con)
@@ -63,12 +67,21 @@ class Collector(tree : Stmt) {
     }
   }
 
-  def addClass(context : Context, name : String, arity : Int, pos : Position) =
-    context.checkAdd(ClassSymbol(name, arity, List()), pos)
+  def addClass(context : Context, name : String, arity : Int, pos : Position) = {
+    val sym = ClassSymbol(name, arity)
+    context.checkAdd(sym, pos)
+    sym
+  }
 
-  def addDef(context : Context, name : String, pos : Position) =
-    context.checkAdd(DefSymbol(name), pos)
+  def addDef(context : Context, name : String, pos : Position) = {
+    val sym = DefSymbol(name)
+    context.checkAdd(sym, pos)
+    sym
+  }
 
-  def addDecl(context : Context, name : String, pos : Position, isMutable : Boolean) =
-    context.checkAdd(DeclSymbol(name, isMutable), pos)
+  def addDecl(context : Context, name : String, pos : Position, isMutable : Boolean) = {
+    val sym = DeclSymbol(name, isMutable)
+    context.checkAdd(sym, pos)
+    sym
+  }
 }
