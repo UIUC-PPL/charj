@@ -13,8 +13,8 @@ class Collector(tree : Stmt) {
     for (child <- context._1.children) print(child, indent + 1)
   }
 
-  def newContext(context : Context, stmt : Stmt) = {
-    val con = new Context(Some(context))
+  def newContext(context : Context, stmt : Stmt, isOrdered : Boolean) = {
+    val con = new Context(Some(context), isOrdered)
     context.children += Tuple2(con, stmt)
     con
   }
@@ -25,7 +25,7 @@ class Collector(tree : Stmt) {
       case StmtList(lst) => traverseTree(lst, context)
       case t@ClassStmt(name, _, generic, _, lst) => {
         val arity = if (generic.isEmpty) 0 else generic.get.size
-        val con = newContext(context, tree)
+        val con = newContext(context, tree, false)
         if (!generic.isEmpty)
           for (gen <- generic.get)
             addClass(con, gen.name.head, 0, gen.pos)
@@ -36,22 +36,22 @@ class Collector(tree : Stmt) {
       }
       case t@DefStmt(_, name, _, _, lst) => {
         t.sym = addDef(context, name, tree.pos)
-        traverseTree(lst, newContext(context, tree))
+        traverseTree(lst, newContext(context, tree, true))
       }
       case t@DeclStmt(mutable, name, _, expr) => {
         t.sym = addDecl(context, name, tree.pos, mutable)
       }
       case ForStmt(decls, _, cont, stmt) => {
-        val con = newContext(context, tree)
+        val con = newContext(context, tree, true)
         traverseTree(decls, con)
         traverseTree(stmt, con)
       }
       case IfStmt(_, stmt1, stmt2) => {
-        traverseTree(stmt1, newContext(context, stmt1))
+        traverseTree(stmt1, newContext(context, stmt1, true))
         if (!stmt2.isEmpty)
-          traverseTree(stmt2, newContext(context, stmt2.get))
+          traverseTree(stmt2, newContext(context, stmt2.get, true))
       }
-      case WhileStmt(_, stmt) => traverseTree(stmt, newContext(context, stmt))
+      case WhileStmt(_, stmt) => traverseTree(stmt, newContext(context, stmt, true))
       case _ => ;
     }
   }

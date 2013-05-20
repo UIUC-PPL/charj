@@ -16,7 +16,7 @@ case class BoundClassSymbol(cs : ClassSymbol, generics : List[Symbol]) extends S
 }
 
 case class ClassSymbol(name : String, arity : Int) extends Symbol {
-  var context : Context = new Context(None)
+  var context : Context = new Context(None, false)
   override def toString = "class \"" + name + "\" (" + arity + ") "
 }
 case class DefSymbol(name : String) extends Symbol {

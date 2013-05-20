@@ -76,9 +76,12 @@ class Checker(tree : Stmt) {
   def determineExprType(expr : Expression, cls : Stmt) {
     expr match {
       case FunExpr(name, param) => {
+        println("determing type for FunExpr: " + name)
         val exprs = if (param.isEmpty) List() else param.get
         val types = exprs.map(_.sym)
-        val retType = resolveFunType(cls, name, types)
+        val (identSym, context) = resolveIdentType(cls, null, cls.context, name.dropRight(1))
+        val retType = resolveFunType(cls, name.last, context, types)
+
         if (retType.isInstanceOf[BoundClassSymbol])
           expr.sym = retType.asInstanceOf[BoundClassSymbol]
         else
@@ -87,9 +90,16 @@ class Checker(tree : Stmt) {
       case NumLiteral(str) => {
         val theInt = tryConvertToInt(str)
         if (!theInt.isEmpty) {
-          println("resolved NumLiteral(" + str + ") to an int")
+          //println("resolved NumLiteral(" + str + ") to an int")
           expr.sym = resolveClassType(Type(List("int"), None), tree)
         }
+      }
+      case StrExpr(lst) => {
+        val (retType, context) = resolveIdentType(cls, null, cls.context, lst)
+        if (retType.isInstanceOf[BoundClassSymbol])
+          expr.sym = retType.asInstanceOf[BoundClassSymbol]
+        else
+          println("Semantic error: could not find return type for ident " + lst + " at " + expr.pos)
       }
       case AddExpr(l, r) => checkBinarySet(l, r, expr)
       case DivExpr(l, r) => checkBinarySet(l, r, expr)
@@ -114,28 +124,29 @@ class Checker(tree : Stmt) {
     cur.sym = l.sym
   }
 
-  def resolveFunType(cls : Stmt, n : List[String], lst : List[Symbol]) : Symbol = {
-    //@todo for now namespaces for types is not supported
-    var context : Context = new Context(None)
+  def resolveIdentType(cls : Stmt, curSymbol : Symbol, context : Context, n : List[String]) : (Symbol, Context) = {
+    println("recursive resolveIdentType: " + n)
 
-    if (n.size == 2) {
-      val decl = expectDeclSymbol(cls, n.head)
+    if (n.size != 0) {
+      val ident = n.head
+      var newContext : Context = null
+
+      val decl = expectDeclSymbol(context, cls, ident)
       if (!decl.isEmpty) {
         val typ = decl.get.declType
-        println("resolved type for " + n.head + " = " + typ)
-        context = typ.cs.context
+        println("\tresolved type for " + n.head + " = " + typ)
+        val newContext = typ.cs.context
+        return resolveIdentType(cls, typ, newContext, n.tail)
       } else {
-        println("Semantic error: could not resolve type for: " + n.head + " at " + cls.pos)
+        println("Semantic error: could not resolve type for: " + ident + " at " + cls.pos)
+        return (NoSymbol(), BaseContext.context)
       }
-    } else if (n.size == 1) {
-      context = cls.context
     } else {
-      println("Semantic error: namespaces not supported at: " + cls.pos)
-      //System.exit(1)
+      return (curSymbol, context)
     }
+  }
 
-    val methodName = if (n.size == 1) n.head else n.tail.head
-
+  def resolveFunType(cls : Stmt, methodName : String, context : Context, lst : List[Symbol]) : Symbol = {
     val foundSym = context.resolve(_ match {
       case t@DefSymbol(name) => {
         if (name == methodName && t.inTypes.size == lst.size) {
@@ -151,7 +162,7 @@ class Checker(tree : Stmt) {
     })
 
     if (foundSym.isEmpty) {
-      println("Semantic error: def " + n + ", in = " + lst + ", unknown at " + cls.pos +
+      println("Semantic error: def " + methodName + ", in = " + lst + ", unknown at " + cls.pos +
               ", searched context: " + context)
       NoSymbol()
       //System.exit(1)
@@ -161,10 +172,10 @@ class Checker(tree : Stmt) {
     }
   }
 
-  def expectDeclSymbol(cls : Stmt, str2 : String) : Option[DeclSymbol] = {
-    val sym = cls.context.resolve(_ match {
-      // make sure it was defined before
-      case t@DeclSymbol(str, _) => str == str2 && t.pos < cls.pos
+  def expectDeclSymbol(context : Context, cls : Stmt, str2 : String) : Option[DeclSymbol] = {
+    val sym = context.resolve(_ match {
+      // make sure it was defined before if it's the same context
+      case t@DeclSymbol(str, _) => str == str2 && (t.pos < cls.pos || cls.context != context || !context.ordered)
       case _ => false 
     })
 

@@ -7,7 +7,7 @@ trait GetName {
 }
 
 abstract class Stmt extends Positional with GetName {
-  var context : Context = new Context(None)
+  var context : Context = new Context(None, false)
 }
 
 case class ClassStmt(name : String, isSystem : Boolean, generic : Option[List[Type]],

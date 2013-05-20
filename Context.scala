@@ -3,13 +3,14 @@ package CharjParser
 import scala.util.parsing.input.{Positional,Position}
 
 object BaseContext {
-  var context : Context = new Context(None)
+  var context : Context = new Context(None, false)
 }
 
-class Context(parent : Option[Context]) {
+class Context(parent : Option[Context], isOrdered : Boolean) {
   import scala.collection.mutable.ListBuffer
   var lst : ListBuffer[Symbol] = ListBuffer()
   var children : ListBuffer[Tuple2[Context, Stmt]] = ListBuffer()
+  val ordered = isOrdered
 
   def checkAdd(sym : Symbol, pos : Position) {
     if (lst contains sym) {
