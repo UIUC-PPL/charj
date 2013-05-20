@@ -50,7 +50,8 @@ case class EmptyStmt() extends Stmt
 case class TypeParam(name : String, typ : Type) extends Stmt
 case class Type(name : List[String], generic : Option[List[Type]]) extends Stmt
 
-abstract class Expression extends Positional
+trait HasBoundClass { var sym : BoundClassSymbol = null }
+abstract class Expression extends Positional with HasBoundClass
 
 case class StrLiteral(text : String) extends Expression
 case class NumLiteral(num : String) extends Expression

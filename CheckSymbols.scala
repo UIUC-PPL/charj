@@ -4,7 +4,6 @@ import scala.util.parsing.input.{Positional,Position}
 
 class Checker(tree : Stmt) {
   def start() = {
-
     println("--- traverse print classes ---")
     def filterClass(cls : Stmt) = cls.isInstanceOf[ClassStmt]
     def printClass(cls : Stmt) = println("found class name = " + cls.asInstanceOf[ClassStmt].name)
@@ -21,9 +20,8 @@ class Checker(tree : Stmt) {
     def filterDecls(cls : Stmt) = cls.isInstanceOf[DeclStmt]
     new StmtVisitor(tree, filterDecls, determineDeclType)
 
-    println("--- traverse all ---")
-    def noFilter(cls : Stmt) = true
-    new StmtVisitor(tree, noFilter, traverseTree)
+    println("--- traverse expressions ---")
+    new ExprVisitor(tree, determineExprType)
   }
 
   def determineDefType(tree : Stmt) {
@@ -75,28 +73,29 @@ class Checker(tree : Stmt) {
     }
   }
 
-  def traverseTree(tree : Stmt) {
-    tree match {
-      case ExprStmt(expr) => {
-        val typ = traverseExpr(tree, expr)
+  def determineExprType(expr : Expression, cls : Stmt) {
+    expr match {
+      case FunExpr(name, param) => {
+        val exprs = if (param.isEmpty) List() else param.get
+        val types = exprs.map(_.sym)
+        val retType = resolveFunType(cls, name, types)
+        if (retType.isInstanceOf[BoundClassSymbol])
+          expr.sym = retType.asInstanceOf[BoundClassSymbol]
+        else
+          println("Semantic error: could not find return type for def " + name + " at " + expr.pos)
       }
+      case NumLiteral(str) => {
+        val theInt = tryConvertToInt(str)
+        if (!theInt.isEmpty) {
+          println("resolved NumLiteral(" + str + ") to an int")
+          expr.sym = resolveClassType(Type(List("int"), None), tree)
+        }
+      }
+      case AddExpr(l, r) => checkBinarySet(l, r, expr)
+      case DivExpr(l, r) => checkBinarySet(l, r, expr)
+      case SubExpr(l, r) => checkBinarySet(l, r, expr)
+      case MulExpr(l, r) => checkBinarySet(l, r, expr)
       case _ => ;
-    }
-
-    def traverseExpr(cls : Stmt, expr : Expression) : Symbol = {
-      expr match {
-        case FunExpr(name, param) => {
-          val exprs = if (param.isEmpty) List() else param.get
-          val types = exprs.map(traverseExpr(cls, _))
-          resolveFunType(cls, name, types)
-        }
-        case NumLiteral(str) => {
-          val theInt = tryConvertToInt(str)
-          if (!theInt.isEmpty) resolveClassType(Type(List("int"), None), tree)
-          else NoSymbol()
-        }
-        case _ => NoSymbol()
-      }
     }
   }
 
@@ -106,6 +105,13 @@ class Checker(tree : Stmt) {
     } catch {
       case _ : java.lang.NumberFormatException => None
     }
+  }
+
+  def checkBinarySet(l : Expression, r : Expression, cur : Expression) {
+    if (l.sym != r.sym)
+      println("Semantic error: binary op with different types: "
+              + l.sym + " at " + l.pos +  "," + r.sym + " at " + r.pos)
+    cur.sym = l.sym
   }
 
   def resolveFunType(cls : Stmt, n : List[String], lst : List[Symbol]) : Symbol = {

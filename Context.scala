@@ -13,6 +13,7 @@ class Context(parent : Option[Context]) {
 
   def checkAdd(sym : Symbol, pos : Position) {
     if (lst contains sym) {
+      // @todo this check needs to be more specific
       val other = lst.find(_ == sym).get
       println("Semantic error: Conflict for " + sym + " at position " + pos + " and " + other.pos)
     } else {
