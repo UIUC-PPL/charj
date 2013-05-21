@@ -151,7 +151,7 @@ object Parse extends StandardTokenParsers with App {
 
   def qualifiedIdent = mkList(ident, ".")
 
-  def expression : Parser[Expression] = equal
+  def expression : Parser[Expression] = bOr
 
   def funcCall = positioned(
     qualifiedIdent ~ "(" ~ parameters.? ~ ")"
@@ -178,38 +178,8 @@ object Parse extends StandardTokenParsers with App {
     | "!" ~> expression          ^^ { case expr   => NotExpr(expr) }
   )
 
-  def comp : Parser[Expression] = positioned(
-    fact ~ rep("<" ~ fact | "<=" ~ fact | ">" ~ fact | ">=" ~ fact)
-    ^^ {
-      case el ~ rest => (el /: rest) {
-        case (x, "<" ~ y) =>  LesExpr(x, y)
-        case (x, "<=" ~ y) => LeqExpr(x, y)
-        case (x, ">" ~ y) =>  GesExpr(x, y)
-        case (x, ">=" ~ y) => GeqExpr(x, y)
-      }
-    }
-  )
-
-  def bAnd : Parser[Expression] = positioned(
-    comp ~ rep("&&" ~ comp)
-    ^^ {
-      case el ~ rest => (el /: rest) {
-        case (x, "&&" ~ y) => AndExpr(x, y)
-      }
-    }
-  )
-
-  def bOr : Parser[Expression] = positioned(
-    bAnd ~ rep("||" ~ bAnd)
-    ^^ {
-      case el ~ rest => (el /: rest) {
-        case (x, "||" ~ y) => OrrExpr(x, y)
-      }
-    }
-  )
-
   def term : Parser[Expression] = positioned(
-    bOr ~ rep("*" ~ bOr | "/" ~ bOr)
+    fact ~ rep("*" ~ fact | "/" ~ fact)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, "*" ~ y) => MulExpr(x, y)
@@ -228,11 +198,33 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def equal : Parser[Expression] = positioned(
-    expr ~ rep("==" ~ expr)
+  def comp : Parser[Expression] = positioned(
+    expr ~ rep("<" ~ expr | "<=" ~ expr | ">" ~ expr | ">=" ~ expr | "==" ~ expr)
     ^^ {
       case el ~ rest => (el /: rest) {
+        case (x, "<" ~ y) =>  LesExpr(x, y)
+        case (x, "<=" ~ y) => LeqExpr(x, y)
+        case (x, ">" ~ y) =>  GesExpr(x, y)
+        case (x, ">=" ~ y) => GeqExpr(x, y)
         case (x, "==" ~ y) => ComExpr(x, y)
+      }
+    }
+  )
+
+  def bAnd : Parser[Expression] = positioned(
+    comp ~ rep("&&" ~ comp)
+    ^^ {
+      case el ~ rest => (el /: rest) {
+        case (x, "&&" ~ y) => AndExpr(x, y)
+      }
+    }
+  )
+
+  def bOr : Parser[Expression] = positioned(
+    bAnd ~ rep("||" ~ bAnd)
+    ^^ {
+      case el ~ rest => (el /: rest) {
+        case (x, "||" ~ y) => OrrExpr(x, y)
       }
     }
   )

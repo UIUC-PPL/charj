@@ -3,6 +3,10 @@ package CharjParser
 import scala.util.parsing.input.{Positional,Position}
 
 class Checker(tree : Stmt) {
+  val booleanType = Type(List("boolean"), None)
+  val intType = Type(List("int"), None)
+  val unitType = Type(List("unit"), None)
+
   def start() = {
     println("--- traverse print classes ---")
     def filterClass(cls : Stmt) = cls.isInstanceOf[ClassStmt]
@@ -31,7 +35,7 @@ class Checker(tree : Stmt) {
         val inTypes = lstParams.map(tparam => resolveClassType(tparam.typ, tree))
         val retType = hasRet match {
           case Some(x) => resolveClassType(x, tree)
-          case None => resolveClassType(Type(List("unit"), None), tree)
+          case None => resolveClassType(unitType, tree)
         }
         if (t.sym == null) {
           println("Semantic error: could not resolve def types at " + t.pos)
@@ -89,10 +93,8 @@ class Checker(tree : Stmt) {
       }
       case NumLiteral(str) => {
         val theInt = tryConvertToInt(str)
-        if (!theInt.isEmpty) {
-          //println("resolved NumLiteral(" + str + ") to an int")
-          expr.sym = resolveClassType(Type(List("int"), None), tree)
-        }
+        if (!theInt.isEmpty)
+          expr.sym = resolveClassType(intType, tree)
       }
       case StrExpr(lst) => {
         val (retType, context) = resolveIdentType(cls, null, cls.context, lst)
@@ -101,10 +103,28 @@ class Checker(tree : Stmt) {
         else
           println("Semantic error: could not find return type for ident " + lst + " at " + expr.pos)
       }
-      case AddExpr(l, r) => checkBinarySet(l, r, expr)
-      case DivExpr(l, r) => checkBinarySet(l, r, expr)
-      case SubExpr(l, r) => checkBinarySet(l, r, expr)
-      case MulExpr(l, r) => checkBinarySet(l, r, expr)
+      case True() | False() => expr.sym = resolveClassType(booleanType, tree)
+      case AddExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
+      case DivExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
+      case SubExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
+      case MulExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
+      case AndExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
+      case OrrExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
+      case ComExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
+      case LesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
+      case LeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
+      case GesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
+      case GeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
+      case NotExpr(l) => {
+        if (l.sym != resolveClassType(booleanType, tree))
+          println("Semantic error: boolean negation incorrect type: " + l.sym + " at " + l.pos)
+        else expr.sym = l.sym
+      }
+      case NegExpr(l) => {
+        if (l.sym != resolveClassType(intType, tree))
+          println("Semantic error: int negation incorrect type: " + l.sym + " at " + l.pos)
+        else expr.sym = l.sym
+      }
       case _ => ;
     }
   }
@@ -117,11 +137,11 @@ class Checker(tree : Stmt) {
     }
   }
 
-  def checkBinarySet(l : Expression, r : Expression, cur : Expression) {
+  def checkBinarySet(l : Expression, r : Expression, cur : Expression, ret : BoundClassSymbol) {
     if (l.sym != r.sym)
-      println("Semantic error: binary op with different types: "
-              + l.sym + " at " + l.pos +  "," + r.sym + " at " + r.pos)
-    cur.sym = l.sym
+      println("Semantic error: binary op " + cur + " with different types: "
+              + l.sym + " at " + l.pos +  ", " + r.sym + " at " + r.pos)
+    cur.sym = ret
   }
 
   def resolveIdentType(cls : Stmt, curSymbol : Symbol, context : Context, n : List[String]) : (Symbol, Context) = {
