@@ -4,6 +4,7 @@ import scala.util.parsing.input.{Positional,Position}
 
 abstract class Symbol extends Positional {
   var isAnything : Boolean = false
+  var isConstructor : Boolean = false
 }
 
 import scala.collection.mutable.ArrayBuffer
@@ -31,7 +32,8 @@ case class ClassSymbol(name : String, arity : Int) extends Symbol {
 case class DefSymbol(name : String, isAbstract : Boolean) extends Symbol {
   var inTypes : List[BoundClassSymbol] = List()
   var retType : BoundClassSymbol = null
-  override def toString = "def \"" + name + "\", in = " + inTypes + ", ret = " + retType
+  override def toString = "def \"" + name + "\", in = " + inTypes +
+                          ", ret = " + retType + ", isConstructor = " + isConstructor
 }
 
 case class DeclSymbol(name : String, isMutable : Boolean) extends Symbol {

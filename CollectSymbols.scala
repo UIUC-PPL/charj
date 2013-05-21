@@ -32,7 +32,10 @@ class Collector(tree : Stmt) {
 
   def newContext(context : Context, stmt : Stmt, isOrdered : Boolean) = new Context(Some(context), isOrdered)
 
+  var enclosingClass : ClassStmt = null
+
   def traverseTree(tree : Stmt, context : Context) {
+    tree.enclosingClass = enclosingClass
     tree.context = context
     tree match {
       case StmtList(lst) => traverseTree(lst, context)
@@ -49,15 +52,21 @@ class Collector(tree : Stmt) {
             t.sym.names += gen.name.head
           }
         t.context = con
+        enclosingClass = t
         traverseTree(lst, con)
+        enclosingClass = null
       }
       case t@DefStmt(_, name, nthunks, _, lst) => {
         val con = newContext(context, tree, true)
         val isAbstract = lst == EmptyStmt()
-        if (t.enclosingClass != null) {
-          t.enclosingClass.sym.isAbstract = true
-        }
+        val isConstructor = t.enclosingClass != null && t.enclosingClass.name == name
         t.sym = addDef(context, tree, con, name, tree.pos, isAbstract)
+        if (t.enclosingClass != null) {
+          t.enclosingClass.sym.isAbstract = isAbstract
+          t.enclosingClass.isAbstract = isAbstract
+          t.sym.isConstructor = isConstructor
+          t.isConstructor = isConstructor
+        }
         if (!nthunks.isEmpty) {
           for (param <- nthunks.get)
             addDecl(con, tree, null, param.name, param.pos, false)
@@ -65,6 +74,10 @@ class Collector(tree : Stmt) {
         traverseTree(lst, con)
       }
       case t@DeclStmt(mutable, name, _, expr) => {
+        if (expr.isEmpty && t.enclosingClass != null) {
+          t.enclosingClass.sym.isAbstract = true
+          t.enclosingClass.isAbstract = true
+        }
         t.sym = addDecl(context, tree, null, name, tree.pos, mutable)
       }
       case ForStmt(decls, _, cont, stmt) => {

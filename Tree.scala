@@ -18,7 +18,8 @@ abstract class Stmt extends Positional with GetName {
 case class ClassStmt(name : String, isSystem : Boolean, generic : Option[List[Type]],
                      parent : Option[Type], lst : List[Stmt]) extends Stmt {
   var sym : ClassSymbol = null
-  override def getName() = pos + "-> class " + name
+  var isAbstract : Boolean = false
+  override def getName() = pos + "-> class " + name + "[isAbstract = " + isAbstract + "]"
 }
 case class ChareStmt(name : String, lst : List[Stmt]) extends Stmt {
   override def getName() = pos + "-> chare " + name
@@ -29,7 +30,8 @@ case class DefStmt(isEntry : Option[String],
                    ret : Option[Type],
                    stmts : Stmt) extends Stmt {
   var sym : DefSymbol = null
-  override def getName() = pos + "-> def " + name
+  var isConstructor : Boolean = false
+  override def getName() = pos + "-> def " + name  + "[isConstructor = " + isConstructor + "]"
 }
 case class DeclStmt(isMutable : Boolean, name : String, typ : Option[Type], expr : Option[Expression]) extends Stmt {
   var sym : DeclSymbol = null

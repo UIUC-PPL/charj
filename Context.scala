@@ -28,20 +28,29 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
   def resolve(test : Symbol => Boolean) : Option[Symbol] = {
     val lookup = lst.find(a => test(a._1))
     if (lookup.isEmpty) {
-      val optParent =
-        parent match {
-          case Some(x) => x.resolve(test)
-          case None => None
+      var cons : Option[(Symbol,Stmt,Context)] = None
+      lst.foreach(a => a._1 match {
+        case ClassSymbol(_,_) => {
+          if (cons == None)
+            cons = if (a._3 != null) a._3.lst.find{b => test(b._1) && b._1.isConstructor} else None
         }
-      if (optParent.isEmpty) {
-        val ret = resolve(extensions, test)
-        ret
+        case _ => ;
+      })
+      if (cons.isEmpty) {
+        val optParent =
+          parent match {
+            case Some(x) => x.resolve(test)
+            case None => None
+          }
+        if (optParent.isEmpty) {
+          val ret = resolve(extensions, test)
+          ret
+        }
+        else optParent
+      } else {
+        Some(cons.get._1)
       }
-      else optParent
-    } else lookup match {
-      case Some((a,_,_)) => Some(a)
-      case None => None
-    }
+    } else Some(lookup.get._1)
   }
 
   def resolve(lst : ListBuffer[Context], test : Symbol => Boolean) : Option[Symbol] = {

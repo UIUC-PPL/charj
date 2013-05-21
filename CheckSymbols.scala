@@ -10,7 +10,8 @@ class Checker(tree : Stmt) {
   def start() = {
     if (verbose) println("--- traverse print classes ---")
     def filterClass(cls : Stmt) = cls.isInstanceOf[ClassStmt]
-    def printClass(cls : Stmt) = if (verbose) println("found class name = " + cls.asInstanceOf[ClassStmt].name)
+    def printClass(cls : Stmt) = if (verbose) println("found class name = " + cls.asInstanceOf[ClassStmt].name +
+                                                      ", abstract = " + cls.asInstanceOf[ClassStmt].isAbstract)
     new StmtVisitor(tree, filterClass, printClass);
 
     if (verbose) println("--- traverse resolve class type ---")
@@ -105,9 +106,12 @@ object Checker {
           tparam.sym = sym
           sym
         };
-        val retType = hasRet match {
+        var retType = hasRet match {
           case Some(x) => resolveClassType(x, tree)
           case None => resolveClassType(unitType, tree)
+        }
+        if (t.isConstructor) {
+          retType = resolveClassType(Type(List(t.enclosingClass.name), t.enclosingClass.generic), tree);
         }
         if (t.sym == null) {
           SemanticError("could not resolve def types", t.pos)
@@ -284,6 +288,7 @@ object Checker {
   }
 
   def resolveFunType(cls : Stmt, methodName : String, context : Context, lst : List[Symbol]) : Symbol = {
+    if (verbose) println("trying to resolve function " + methodName)
     val foundSym = context.resolve(_ match {
       case t@DefSymbol(name, _) => {
         if (name == methodName && t.inTypes.size == lst.size) {
