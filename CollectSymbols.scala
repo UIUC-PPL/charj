@@ -6,6 +6,7 @@ object BasicTypes {
   val booleanType = Type(List("boolean"), None)
   val intType = Type(List("int"), None)
   val unitType = Type(List("unit"), None)
+  val refType = Type(List("Ref"), Some(List(Type(List("T"), None))))
 }
 
 class Collector(tree : Stmt) {
@@ -38,19 +39,29 @@ class Collector(tree : Stmt) {
       case t@ClassStmt(name, _, generic, _, lst) => {
         val arity = if (generic.isEmpty) 0 else generic.get.size
         val con = newContext(context, tree, false)
-        if (!generic.isEmpty)
-          for (gen <- generic.get) {
-            val tcon = newContext(con, DefStmt(None,name,None,Some(unitType), List()), false)
-            addClass(con, gen, tcon, gen.name.head, 0, gen.pos)
-          }
         t.sym = addClass(context, tree, con, name, arity, tree.pos)
         t.sym.context = con
+        if (!generic.isEmpty)
+          for (gen <- generic.get) {
+            val tcon = newContext(con, DefStmt(None,name,None,Some(unitType), StmtList(List())), false)
+            val sym = addClass(con, gen, tcon, gen.name.head, 0, gen.pos)
+            sym.isAnything = true
+            t.sym.names += gen.name.head
+          }
         t.context = con
         traverseTree(lst, con)
       }
-      case t@DefStmt(_, name, _, _, lst) => {
+      case t@DefStmt(_, name, nthunks, _, lst) => {
         val con = newContext(context, tree, true)
-        t.sym = addDef(context, tree, con, name, tree.pos)
+        val isAbstract = lst == EmptyStmt()
+        if (t.enclosingClass != null) {
+          t.enclosingClass.sym.isAbstract = true
+        }
+        t.sym = addDef(context, tree, con, name, tree.pos, isAbstract)
+        if (!nthunks.isEmpty) {
+          for (param <- nthunks.get)
+            addDecl(con, tree, null, param.name, param.pos, false)
+        }
         traverseTree(lst, con)
       }
       case t@DeclStmt(mutable, name, _, expr) => {
@@ -89,8 +100,9 @@ class Collector(tree : Stmt) {
     sym
   }
 
-  def addDef(context : Context, stmt : Stmt, newContext : Context, name : String, pos : Position) = {
-    val sym = DefSymbol(name)
+  def addDef(context : Context, stmt : Stmt, newContext : Context,
+             name : String, pos : Position, isAbstract : Boolean) = {
+    val sym = DefSymbol(name, isAbstract)
     context.checkAdd(sym, stmt, newContext, pos)
     sym
   }

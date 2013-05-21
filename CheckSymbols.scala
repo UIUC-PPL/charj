@@ -1,6 +1,7 @@
 package CharjParser
 
 import scala.util.parsing.input.{Positional,Position}
+import scala.collection.mutable.ArrayBuffer
 
 class Checker(tree : Stmt) {
   import Checker._
@@ -65,6 +66,25 @@ object Checker {
         if (!classesEqual(expr1.sym, resolveClassType(booleanType,tree)))
           SemanticError("while statement condition must be of type boolean", t.pos)
       }
+      case t@DeclStmt(_, _, optType, Some(expr1)) => {
+        if (expr1.sym == null)
+          SemanticError("decl statement condition type not determined", t.pos)
+        if (optType.isEmpty)
+          SemanticError("type required on decl", t.pos)
+        if (!classesEqual(expr1.sym, resolveClassType(optType.get, tree)))
+          SemanticError("decl type and expression must match", t.pos)
+      }
+      case t@ReturnStmt(optExp) => {
+        if (optExp.isEmpty) {
+          if (!classesEqual(t.enclosingDef.sym.retType, resolveClassType(unitType,tree)))
+            SemanticError("return type of def must be unit (or not present)", t.pos)
+        } else if (optExp.get.sym != null) {
+          if (!classesEqual(t.enclosingDef.sym.retType, optExp.get.sym))
+            SemanticError("return type of def must match declared: " + optExp.get.sym, t.pos)
+        } else {
+          SemanticError("unable to resolve type of return", t.pos)
+        }
+      }
       case _ => ;
     }
   }
@@ -73,7 +93,16 @@ object Checker {
     tree.asInstanceOf[DefStmt] match {
       case t@DefStmt(_, name, maybeParams, hasRet, lst) => {
         val lstParams = if (maybeParams.isEmpty) List() else maybeParams.get
-        val inTypes = lstParams.map(tparam => resolveClassType(tparam.typ, tree))
+        val inTypes = lstParams.map {tparam =>
+          val decl = expectDeclSymbol(lst.context, tparam, tparam.name)
+          val sym = resolveClassType(tparam.typ, tree)
+          if (decl.isEmpty)
+            SemanticError("could not find symbol for parameter: " + tparam, tparam.pos)
+          else
+            decl.get.declType = sym
+          tparam.sym = sym
+          sym
+        };
         val retType = hasRet match {
           case Some(x) => resolveClassType(x, tree)
           case None => resolveClassType(unitType, tree)
@@ -130,11 +159,17 @@ object Checker {
         val exprs = if (param.isEmpty) List() else param.get
         val types = exprs.map(_.sym)
         val (identSym, context) = resolveIdentType(cls, null, cls.context, name.dropRight(1))
-        val retType = resolveFunType(cls, name.last, context, types)
 
+        if (verbose) println("function call: " + name + ", ident = " + identSym)
+
+        var retType = resolveFunType(cls, name.last, context, types)
         if (retType.isInstanceOf[BoundClassSymbol])
+          retType = replaceWithBinding(retType.asInstanceOf[BoundClassSymbol], identSym)
+
+        if (retType.isInstanceOf[BoundClassSymbol]) {
           expr.sym = retType.asInstanceOf[BoundClassSymbol]
-        else
+          expr.context = context
+        } else
           SemanticError("could not find return type for def " + name, expr.pos)
       }
       case NumLiteral(str) => {
@@ -144,12 +179,27 @@ object Checker {
       }
       case StrExpr(lst) => {
         val (retType, context) = resolveIdentType(cls, null, cls.context, lst)
-        if (retType.isInstanceOf[BoundClassSymbol])
+        if (retType.isInstanceOf[BoundClassSymbol]) {
           expr.sym = retType.asInstanceOf[BoundClassSymbol]
-        else
-          SemanticError("could not find return type for ident " + lst, expr.pos)
+          expr.context = context
+        } else
+          SemanticError("could not find type for ident " + lst, expr.pos)
       }
       case True() | False() => expr.sym = resolveClassType(booleanType, cls)
+      case DotExpr(l, r) => {
+        if (l.sym == null) {
+          SemanticError("should be resolved to type" + l, l.pos)
+        } else {
+          /*if (verbose)*/ println("resolved to type: " + l.sym)
+
+          val (retType, context) = resolveIdentType(cls, l.sym, l.context, List(r.text))
+          if (retType.isInstanceOf[BoundClassSymbol]) {
+            r.sym = retType.asInstanceOf[BoundClassSymbol]
+            r.context = context
+          } else
+            SemanticError("could not find type for DotExpr rhs " + r, expr.pos)
+        }
+      }
       case AddExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case DivExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case SubExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
@@ -171,6 +221,7 @@ object Checker {
           SemanticError("int negation incorrect type: " + l.sym, l.pos)
         else expr.sym = l.sym
       }
+      case Null() => expr.sym = resolveClassType(refType, cls)
       case _ => ;
     }
   }
@@ -190,15 +241,25 @@ object Checker {
   }
 
   def resolveIdentType(cls : Stmt, curSymbol : Symbol, context : Context, n : List[String]) : (Symbol, Context) = {
-    if (verbose) println("recursive resolveIdentType: " + n)
+    /*if (n.size != 0)
+    /*if (verbose)*/ println("recursive resolveIdentType: " + n)*/
 
     if (n.size != 0) {
       val ident = n.head
       var newContext : Context = null
 
+      //val bindings = if (curSymbol.isInstanceOf[BoundClassSymbol]) curSymbol.asInstanceOf[BoundClassSymbol].generics else List()
+
       val decl = expectDeclSymbol(context, cls, ident)
       if (!decl.isEmpty) {
-        val typ = decl.get.declType
+        var typ = decl.get.declType
+        //for ((g1, g2) <- typ.generics zip curSymbol.generics)
+        if (typ.isInstanceOf[BoundClassSymbol] && curSymbol.isInstanceOf[BoundClassSymbol]) {
+          //println("typ = " + typ)
+          //println("curSymbol = " + curSymbol)
+          typ = replaceWithBinding(typ, curSymbol)
+          if (verbose) println("**** newTyp = " + typ)
+        }
         if (verbose) println("\tresolved type for " + n.head + " = " + typ)
         if (typ != null && typ.cs != null && typ.cs.context != null) {
           val newContext = typ.cs.context
@@ -217,12 +278,18 @@ object Checker {
 
   def resolveFunType(cls : Stmt, methodName : String, context : Context, lst : List[Symbol]) : Symbol = {
     val foundSym = context.resolve(_ match {
-      case t@DefSymbol(name) => {
+      case t@DefSymbol(name, _) => {
         if (name == methodName && t.inTypes.size == lst.size) {
           val toComp = (t.inTypes,lst).zipped.toList
           var isMatching = true
           for ((type1, type2) <- toComp) {
-            if (type1 != type2) isMatching = false
+            if (type1.isInstanceOf[BoundClassSymbol] && type2.isInstanceOf[BoundClassSymbol]) {
+              val bcs1 = type1.asInstanceOf[BoundClassSymbol]
+              val bcs2 = type2.asInstanceOf[BoundClassSymbol]
+              if (!classesEqual(bcs1, bcs2)) isMatching = false
+            } else {
+              if (type1 != type2) isMatching = false
+            }
           }
           isMatching
         } else false
@@ -241,6 +308,15 @@ object Checker {
   }
 
   def expectDeclSymbol(context : Context, cls : Stmt, str2 : String) : Option[DeclSymbol] = {
+    if (context == null) {
+      SemanticError("trying to search null context for: " + str2, cls.pos)
+      return None
+    }
+
+    if (cls.enclosingClass != null && cls.enclosingClass.sym != null) {
+      cls.enclosingClass.sym
+    }
+
     val sym = context.resolve(_ match {
       // make sure it was defined before if it's the same context
       case t@DeclSymbol(str, _) => str == str2 && (t.pos < cls.pos || cls.context != context || !context.ordered)
@@ -266,9 +342,9 @@ object Checker {
       return null
     }
 
-    val genTypes : List[Symbol] = t.generic match {
-      case Some(typeList) => typeList.map(t => resolveClassType(t, tree))
-      case None => List()
+    val genTypes : ArrayBuffer[Symbol] = t.generic match {
+      case Some(typeList) => ArrayBuffer(typeList.map(t => resolveClassType(t, tree)) : _*)
+      case None => ArrayBuffer()
     }
 
     val className = t.name.head
@@ -291,6 +367,54 @@ object Checker {
   }
 
   def classesEqual(cls1 : BoundClassSymbol, cls2 : BoundClassSymbol) : Boolean = {
-    cls1 == cls2
+    if (cls1.cs == cls2.cs) {
+      val gens = cls1.generics zip cls2.generics
+      for ((g1, g2) <- gens) {
+        if (verbose) println("compare: g1 = " + g1 + ", g2 = " + g2)
+        if (!(g1 == g2 || g1.isAnything || g2.isAnything)) return false
+      }
+      true
+    } else if (cls1.isAnything || cls2.isAnything) {
+      true
+    } else {
+      false
+    }
+  }
+
+  import scala.collection.mutable.ListBuffer
+  def tryFind(str : String, mapping : ListBuffer[(String, Symbol)]) : Option[Symbol] = {
+    for ((str2, sym) <- mapping) {
+      if (str == str2) return Some(sym)
+    }
+    return None
+  }
+
+  def findInMappingOrKeep(cs : BoundClassSymbol, mapping : ListBuffer[(String, Symbol)]) : BoundClassSymbol = {
+    val name = cs.cs.name
+    val optNewSymbol = tryFind(name, mapping)
+    var curSymbol = cs
+
+    if (!optNewSymbol.isEmpty && optNewSymbol.get.isInstanceOf[BoundClassSymbol] && cs.isAnything) {
+      curSymbol = optNewSymbol.get.asInstanceOf[BoundClassSymbol].copy()
+      if (verbose) println("findInMappingOrKeep: new symbol = " + curSymbol)
+    }
+
+    for ((sym, i) <- curSymbol.generics.zipWithIndex) {
+      val sym2 = sym.asInstanceOf[BoundClassSymbol]
+      if (sym2.isAnything && !tryFind(sym2.cs.name, mapping).isEmpty) {
+        curSymbol.generics(i) = tryFind(sym2.cs.name, mapping).get.asInstanceOf[BoundClassSymbol].copy()
+      }
+    }
+
+    return curSymbol
+  }
+
+  def replaceWithBinding(toBind : BoundClassSymbol, type2 : Symbol) : BoundClassSymbol = {
+    if (type2.isInstanceOf[BoundClassSymbol]) {
+      val hasBind = type2.asInstanceOf[BoundClassSymbol]
+      val mapping = hasBind.cs.names zip hasBind.generics
+      val newSymbol = findInMappingOrKeep(toBind, mapping)
+      return newSymbol
+    } else toBind
   }
 }

@@ -56,10 +56,10 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
     for ((sym,stmt,con) <- lst) {
       sym match {
         case ClassSymbol(name, _) => {
-          val stmt2 = DefStmt(None,name,None,None,List())
+          val stmt2 = DefStmt(None,name,None,None,StmtList(List()))
           // artifically set position
           stmt2.pos = stmt.pos
-          val artSym = DefSymbol(name)
+          val artSym = DefSymbol(name, false)
           artSym.retType = Checker.resolveClassType(BasicTypes.unitType, BaseContext.base)
           con.checkAdd(artSym, stmt2, null, stmt.pos)
         }

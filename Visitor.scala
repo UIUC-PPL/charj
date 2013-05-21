@@ -2,21 +2,40 @@ package CharjParser
 
 class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Unit) {
   traverseTree(tree)
+  var enclosingClass : ClassStmt = null
+  var enclosingDef : DefStmt = null
 
   def traverseTree(tree : Stmt) {
+    tree.enclosingClass = enclosingClass
+    tree.enclosingDef = enclosingDef
+
     tree match {
       case StmtList(lst) => traverseTree(lst)
       case t@ClassStmt(_, _, _, _, lst) => {
+        // set enclosing
+        enclosingClass = t
+        tree.enclosingClass = t
+
         maybeVisit(tree)
         traverseTree(lst)
+
+        // unset enclosing class
+        enclosingClass = null
       }
       case t@ChareStmt(_, lst) => {
         maybeVisit(tree)
         traverseTree(lst)
       }
       case t@DefStmt(_, _, _, _, lst) => {
+        // set enclosing
+        enclosingDef = t
+        tree.enclosingDef = t
+
         maybeVisit(tree)
         traverseTree(lst)
+
+        // set enclosing
+        enclosingDef = null
       }
       case t@DeclStmt(_, _, _, _) => maybeVisit(tree)
       case t@IfStmt(_, stmt1, stmt2) => {
@@ -51,7 +70,7 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
 
   def traverseTree(tree : Stmt) {
     tree match {
-      case DeclStmt(_, _, _, expr) => visit(expr, tree)
+      case DeclStmt(_, _, _, Some(expr)) => visit(expr, tree)
       case ExprStmt(expr) => visit(expr, tree)
       case AssignStmt(_, _, expr) => visit(expr, tree)
       case IfStmt(expr, _, _) => visit(expr, tree)
@@ -82,6 +101,12 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
       case LeqExpr(l, r) => visitBinary(l, r, s, expr)
       case GesExpr(l, r) => visitBinary(l, r, s, expr)
       case GeqExpr(l, r) => visitBinary(l, r, s, expr)
+      case DotExpr(l, r) => {
+        // lhs traversal order for resolution
+        visit(l, s)
+        visit2(expr, s)
+        visit(r, s)
+      }
       case t@FunExpr(_, params) => {
         if (!params.isEmpty) for (i <- params.get) visit(i, s)
         visit2(t, s)
@@ -95,6 +120,7 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
       }
       case t@True() => visit2(t, s)
       case t@False() => visit2(t, s)
+      case t@Null() => visit2(t, s)
       case _ => visit2(expr, s)
     }
   }

@@ -13,13 +13,13 @@ object Parse extends StandardTokenParsers with App {
   lexical.reserved += ("class", "entry", "def", "val", "var",
                        "chare", "mainchare", "charearray",
                        "if", "else", "true", "false", "new",
-                       "for", "while", "return")
+                       "for", "while", "return", "null")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")",
                          ":", ".", ",", ";", "&&", "||", "!",
                          "<", "<=", ">", ">=", "+=", "-=", "#")
 
-  val input = Source.fromFile("../input.test").getLines.reduceLeft[String](_ + '\n' + _)
+  val input = Source.fromFile("../input4.test").getLines.reduceLeft[String](_ + '\n' + _)
   val tokens = new lexical.Scanner(input)
 
   val result = phrase(program)(tokens)
@@ -27,7 +27,6 @@ object Parse extends StandardTokenParsers with App {
   result match {
     case Success(tree, _) => {
       import BaseContext.verbose
-
       verbose = false
 
       if (verbose) println("--- successfully parsed AST ---")
@@ -63,9 +62,11 @@ object Parse extends StandardTokenParsers with App {
     defStmt | varStmt <~ ";"
   )
 
+  def empty = ";" ^^^ EmptyStmt()
+
   def semiStmt : Parser[Stmt] = positioned(
       varStmt <~ ";"
-    | ";" ^^^ EmptyStmt()
+    | empty
     | assignStmt <~ ";"
     | expression <~ ";" ^^ { case expr => ExprStmt(expr) }
     | ifStmt
@@ -93,10 +94,12 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case _ ~ ident ~ _ ~ stmts ~ _ => ChareStmt(ident, stmts) }
   )
 
+  def semi = "{" ~ semiStmt.* ~ "}" ^^ { case _ ~ semi ~ _ => StmtList(semi) }
+
   def defStmt = positioned(
-    "entry".? ~ "def" ~ ident ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ "{" ~ semiStmt.* ~ "}"
-    ^^ { case isEntry ~ _ ~ ident ~ _ ~ typedParamList ~ _ ~ typeStmt ~ _ ~ semiStmt ~ _ =>
-      DefStmt(isEntry, ident, typedParamList, typeStmt, semiStmt)
+    "entry".? ~ "def" ~ ident ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
+    ^^ { case isEntry ~ _ ~ ident ~ _ ~ typedParamList ~ _ ~ typeStmt ~ semi =>
+      DefStmt(isEntry, ident, typedParamList, typeStmt, semi)
     }
   )
 
@@ -110,9 +113,11 @@ object Parse extends StandardTokenParsers with App {
     | "val" ^^ { case _ => false }
   )
 
+  def equalExpr = "=" ~ expression ^^ { case _ ~ expr => expr }
+
   def varStmt = positioned(
-    declStart ~ ident ~ typeStmt.? ~ "=" ~ expression
-    ^^ { case mutable ~ ident ~ typeStmt ~ _ ~ expr => DeclStmt(mutable, ident, typeStmt, expr) }
+    declStart ~ ident ~ typeStmt.? ~ equalExpr.?
+    ^^ { case mutable ~ ident ~ typeStmt ~ expr => DeclStmt(mutable, ident, typeStmt, expr) }
   )
 
   def typeStmt = positioned(
@@ -178,6 +183,7 @@ object Parse extends StandardTokenParsers with App {
     | newExpr
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }
+    | "null"                     ^^ { case _      => Null() }
     |  qualifiedIdent            ^^ { case qident => StrExpr(qident) }
     | "-" ~> expression          ^^ { case expr   => NegExpr(expr) }
     | numericLit                 ^^ { case lit    => NumLiteral(lit) }
@@ -186,8 +192,17 @@ object Parse extends StandardTokenParsers with App {
     | "!" ~> expression          ^^ { case expr   => NotExpr(expr) }
   )
 
+  def dot : Parser[Expression] = positioned(
+    fact ~ rep("." ~ ident)
+    ^^ {
+      case el ~ rest => (el /: rest) {
+        case (x, "." ~ y) => DotExpr(x, StrLiteral(y))
+      }
+    }
+  )
+
   def term : Parser[Expression] = positioned(
-    fact ~ rep("*" ~ fact | "/" ~ fact)
+    dot ~ rep("*" ~ dot | "/" ~ dot)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, "*" ~ y) => MulExpr(x, y)
