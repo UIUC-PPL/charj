@@ -71,8 +71,10 @@ object Checker {
           SemanticError("decl statement condition type not determined", t.pos)
         if (optType.isEmpty)
           SemanticError("type required on decl", t.pos)
-        if (!classesEqual(expr1.sym, resolveClassType(optType.get, tree)))
-          SemanticError("decl type and expression must match", t.pos)
+        if (!classesEqual(expr1.sym, resolveClassType(optType.get, tree))) {
+          val typ = resolveClassType(optType.get, tree)
+          SemanticError("decl type and expression must match: " + expr1.sym + " and " + typ, t.pos)
+        }
       }
       case t@ReturnStmt(optExp) => {
         if (optExp.isEmpty) {
