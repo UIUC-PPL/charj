@@ -170,7 +170,7 @@ object Checker {
 
         if (retType.isInstanceOf[BoundClassSymbol]) {
           expr.sym = retType.asInstanceOf[BoundClassSymbol]
-          expr.context = context
+          expr.context = retType.asInstanceOf[BoundClassSymbol].cs.context
         } else
           SemanticError("could not find return type for def " + name, expr.pos)
       }
@@ -181,6 +181,7 @@ object Checker {
       }
       case StrExpr(lst) => {
         val (retType, context) = resolveIdentType(cls, null, cls.context, lst)
+
         if (retType.isInstanceOf[BoundClassSymbol]) {
           expr.sym = retType.asInstanceOf[BoundClassSymbol]
           expr.context = context
@@ -192,12 +193,18 @@ object Checker {
         if (l.sym == null) {
           SemanticError("should be resolved to type" + l, l.pos)
         } else {
-          /*if (verbose)*/ println("resolved to type: " + l.sym)
+          if (verbose) println("resolved to type: " + l.sym)
 
-          val (retType, context) = resolveIdentType(cls, l.sym, l.context, List(r.text))
+          val (rt, context) = resolveIdentType(cls, l.sym, l.context, List(r.text))
+          var retType = rt
+          if (retType.isInstanceOf[BoundClassSymbol])
+            retType = replaceWithBinding(retType.asInstanceOf[BoundClassSymbol], l.sym)
+
           if (retType.isInstanceOf[BoundClassSymbol]) {
             r.sym = retType.asInstanceOf[BoundClassSymbol]
             r.context = context
+            expr.sym = r.sym
+            expr.context = context
           } else
             SemanticError("could not find type for DotExpr rhs " + r, expr.pos)
         }
@@ -243,16 +250,14 @@ object Checker {
   }
 
   def resolveIdentType(cls : Stmt, curSymbol : Symbol, context : Context, n : List[String]) : (Symbol, Context) = {
-    /*if (n.size != 0)
-    /*if (verbose)*/ println("recursive resolveIdentType: " + n)*/
+    if (n.size != 0 && verbose)
+      println("recursive resolveIdentType: " + n + ", context = " + context)
 
     if (n.size != 0) {
       val ident = n.head
       var newContext : Context = null
-
-      //val bindings = if (curSymbol.isInstanceOf[BoundClassSymbol]) curSymbol.asInstanceOf[BoundClassSymbol].generics else List()
-
       val decl = expectDeclSymbol(context, cls, ident)
+
       if (!decl.isEmpty) {
         var typ = decl.get.declType
         //for ((g1, g2) <- typ.generics zip curSymbol.generics)

@@ -7,14 +7,14 @@ abstract class Symbol extends Positional {
 }
 
 import scala.collection.mutable.ArrayBuffer
-case class BoundClassSymbol(cs : ClassSymbol, var generics : ArrayBuffer[Symbol]) extends Symbol {
+case class BoundClassSymbol(cs : ClassSymbol, generics : ArrayBuffer[Symbol]) extends Symbol {
   isAnything = cs.isAnything
   override def toString = {
-    val genString = {
+    val genString = "" /*{
       if (generics.size > 0)
         "[" + generics.map(_.toString).foldLeft("")((b,a) => b + a) + "]"
       else ""
-    }
+    }*/
     "class \"" + cs.name + "\" ["+ cs.arity + "] <" + cs.names + ">, any = " + isAnything + ", " + genString
   }
 }
