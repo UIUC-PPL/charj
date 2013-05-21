@@ -4,31 +4,33 @@ import scala.util.parsing.input.{Positional,Position}
 
 class Checker(tree : Stmt) {
   import Checker._
+  import BaseContext.verbose
 
   def start() = {
-    println("--- traverse print classes ---")
+    if (verbose) println("--- traverse print classes ---")
     def filterClass(cls : Stmt) = cls.isInstanceOf[ClassStmt]
-    def printClass(cls : Stmt) = println("found class name = " + cls.asInstanceOf[ClassStmt].name)
+    def printClass(cls : Stmt) = if (verbose) println("found class name = " + cls.asInstanceOf[ClassStmt].name)
     new StmtVisitor(tree, filterClass, printClass);
 
-    println("--- traverse resolve class type ---")
+    if (verbose) println("--- traverse resolve class type ---")
     new StmtVisitor(tree, filterClass, determineClassType);
 
-    println("--- traverse resolve def type ---")
+    if (verbose) println("--- traverse resolve def type ---")
     def filterDefs(cls : Stmt) = cls.isInstanceOf[DefStmt]
     new StmtVisitor(tree, filterDefs, determineDefType)
 
-    println("--- traverse resolve decl type ---")
+    if (verbose) println("--- traverse resolve decl type ---")
     def filterDecls(cls : Stmt) = cls.isInstanceOf[DeclStmt]
     new StmtVisitor(tree, filterDecls, determineDeclType)
 
-    println("--- traverse expressions ---")
+    if (verbose) println("--- traverse expressions ---")
     new ExprVisitor(tree, determineExprType)
   }
 }
 
 object Checker {
   import BasicTypes._
+  import BaseContext.verbose
 
   def determineDefType(tree : Stmt) {
     tree.asInstanceOf[DefStmt] match {
@@ -45,7 +47,7 @@ object Checker {
         } else {
           t.sym.inTypes = inTypes
           t.sym.retType = retType
-          println(name + " def ret is " + retType + ", inTypes = " + inTypes)
+          if (verbose) println(name + " def ret is " + retType + ", inTypes = " + inTypes)
         }
       }
     }
@@ -56,9 +58,9 @@ object Checker {
       case t@ClassStmt(name, _, _, Some(parent), _) => {
         val cls = resolveClassType(parent, tree)
         t.context.extensions += cls.cs.context
-        println(name + " this class symbol is " + t.sym)
+        if (verbose) println(name + " this class symbol is " + t.sym)
         t.sym.subtypes += cls
-        println(name + " resolved to subclass of " + cls)
+        if (verbose) println(name + " resolved to subclass of " + cls)
       }
       case _ => ;
     }
@@ -75,7 +77,7 @@ object Checker {
         if (sym == NoSymbol())
           SemanticError(name + " not resolved", t.pos)
         else
-          println("resolved " + name + " to " + thisSym.get + " with type: " + sym)
+          if (verbose) println("resolved " + name + " to " + thisSym.get + " with type: " + sym)
         thisSym.get.asInstanceOf[DeclSymbol].declType = sym.asInstanceOf[BoundClassSymbol]
       }
       case _ => ;
@@ -85,7 +87,7 @@ object Checker {
   def determineExprType(expr : Expression, cls : Stmt) {
     expr match {
       case FunExpr(name, param) => {
-        println("determing type for FunExpr: " + name)
+        if (verbose) println("determing type for FunExpr: " + name)
         val exprs = if (param.isEmpty) List() else param.get
         val types = exprs.map(_.sym)
         val (identSym, context) = resolveIdentType(cls, null, cls.context, name.dropRight(1))
@@ -149,7 +151,7 @@ object Checker {
   }
 
   def resolveIdentType(cls : Stmt, curSymbol : Symbol, context : Context, n : List[String]) : (Symbol, Context) = {
-    println("recursive resolveIdentType: " + n)
+    if (verbose) println("recursive resolveIdentType: " + n)
 
     if (n.size != 0) {
       val ident = n.head
@@ -158,7 +160,7 @@ object Checker {
       val decl = expectDeclSymbol(context, cls, ident)
       if (!decl.isEmpty) {
         val typ = decl.get.declType
-        println("\tresolved type for " + n.head + " = " + typ)
+        if (verbose) println("\tresolved type for " + n.head + " = " + typ)
         val newContext = typ.cs.context
         return resolveIdentType(cls, typ, newContext, n.tail)
       } else {
@@ -190,7 +192,7 @@ object Checker {
       NoSymbol()
       //System.exit(1)
     } else {
-      println("resolved def to: " + foundSym.get)
+      if (verbose) println("resolved def to: " + foundSym.get)
       foundSym.get.asInstanceOf[DefSymbol].retType
     }
   }

@@ -5,6 +5,7 @@ import scala.util.parsing.input.{Positional,Position}
 object BaseContext {
   var context : Context = new Context(None, false)
   var base : Stmt = null
+  var verbose : Boolean = false
 }
 
 class Context(parent : Option[Context], isOrdered : Boolean) {

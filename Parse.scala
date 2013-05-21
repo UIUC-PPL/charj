@@ -26,19 +26,25 @@ object Parse extends StandardTokenParsers with App {
 
   result match {
     case Success(tree, _) => {
-      println("--- successfully parsed AST ---")
-      println(tree)
+      import BaseContext.verbose
+
+      verbose = false
+
+      if (verbose) println("--- successfully parsed AST ---")
+      if (verbose) println(tree)
 
       BaseContext.base = tree
 
-      println("--- begin complete symbol collection ---")
+      if (verbose) println("--- begin complete symbol collection ---")
       val col = new Collector(tree)
       col.start()
-      println("--- symbol collections in nested contexts ---")
-      col.print(Tuple2(BaseContext.context, EmptyStmt()), 1)
+      if (verbose) println("--- symbol collections in nested contexts ---")
+      if (verbose) col.print(Tuple2(BaseContext.context, EmptyStmt()), 1)
 
       val checker = new Checker(tree)
       checker.start()
+
+      println("Static checker finished")
     }
     case e: NoSuccess => {
       Console.err.println(e)
