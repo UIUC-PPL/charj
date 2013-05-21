@@ -48,7 +48,9 @@ case class ReturnStmt(fact : Option[Expression]) extends Stmt {
 case class EmptyStmt() extends Stmt
 
 case class TypeParam(name : String, typ : Type) extends Stmt
-case class Type(name : List[String], generic : Option[List[Type]]) extends Stmt
+case class Type(name : List[String], generic : Option[List[Type]]) extends Stmt {
+   override def getName() = pos + "-> type " + name
+}
 
 trait HasBoundClass { var sym : BoundClassSymbol = null }
 abstract class Expression extends Positional with HasBoundClass

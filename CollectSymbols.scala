@@ -3,21 +3,25 @@ package CharjParser
 import scala.util.parsing.input.{Positional,Position}
 
 class Collector(tree : Stmt) {
-  def start() = traverseTree(tree, BaseContext.context)
+  def start() = {
+    traverseTree(tree, BaseContext.context)
+    BaseContext.context.addInImplicits(null)
+  }
 
   def print(context : Tuple2[Context, Stmt], indent : Int) {
-    if (context._1.lst.size != 0) {
-      val str = (0 to indent).map(_ => "\t").foldLeft("")((b,a) => b + a)
-      println(str + context._2.getName() + ":  " + context._1.lst.toString())
+    val str = (0 to indent).map(_ => "\t").foldLeft("")((b,a) => b + a)
+    if (context._1 == null) {
+      println(str + context._2.getName() + ": no context")
+    } else {
+      if (context._1.lst.size != 0)
+        println(str + context._2.getName() + ":  " + context._1.lst.unzip3._1.toString())
+      val (syms, stmts, cons) = context._1.lst.unzip3
+      val others = cons zip stmts
+      for (child <- others) print(child, indent + 1)
     }
-    for (child <- context._1.children) print(child, indent + 1)
   }
 
-  def newContext(context : Context, stmt : Stmt, isOrdered : Boolean) = {
-    val con = new Context(Some(context), isOrdered)
-    context.children += Tuple2(con, stmt)
-    con
-  }
+  def newContext(context : Context, stmt : Stmt, isOrdered : Boolean) = new Context(Some(context), isOrdered)
 
   def traverseTree(tree : Stmt, context : Context) {
     tree.context = context
@@ -27,19 +31,22 @@ class Collector(tree : Stmt) {
         val arity = if (generic.isEmpty) 0 else generic.get.size
         val con = newContext(context, tree, false)
         if (!generic.isEmpty)
-          for (gen <- generic.get)
-            addClass(con, gen.name.head, 0, gen.pos)
-        t.sym = addClass(context, name, arity, tree.pos)
+          for (gen <- generic.get) {
+            val tcon = newContext(con, DefStmt(None,name,None,None,List()), false)
+            addClass(con, gen, tcon, gen.name.head, 0, gen.pos)
+          }
+        t.sym = addClass(context, tree, con, name, arity, tree.pos)
         t.sym.context = con
         t.context = con
         traverseTree(lst, con)
       }
       case t@DefStmt(_, name, _, _, lst) => {
-        t.sym = addDef(context, name, tree.pos)
-        traverseTree(lst, newContext(context, tree, true))
+        val con = newContext(context, tree, true)
+        t.sym = addDef(context, tree, con, name, tree.pos)
+        traverseTree(lst, con)
       }
       case t@DeclStmt(mutable, name, _, expr) => {
-        t.sym = addDecl(context, name, tree.pos, mutable)
+        t.sym = addDecl(context, tree, null, name, tree.pos, mutable)
       }
       case ForStmt(decls, _, cont, stmt) => {
         val con = newContext(context, tree, true)
@@ -67,21 +74,23 @@ class Collector(tree : Stmt) {
     }
   }
 
-  def addClass(context : Context, name : String, arity : Int, pos : Position) = {
+  def addClass(context : Context, stmt : Stmt, newContext : Context,
+               name : String, arity : Int, pos : Position) = {
     val sym = ClassSymbol(name, arity)
-    context.checkAdd(sym, pos)
+    context.checkAdd(sym, stmt, newContext, pos)
     sym
   }
 
-  def addDef(context : Context, name : String, pos : Position) = {
+  def addDef(context : Context, stmt : Stmt, newContext : Context, name : String, pos : Position) = {
     val sym = DefSymbol(name)
-    context.checkAdd(sym, pos)
+    context.checkAdd(sym, stmt, newContext, pos)
     sym
   }
 
-  def addDecl(context : Context, name : String, pos : Position, isMutable : Boolean) = {
+  def addDecl(context : Context, stmt : Stmt, newContext : Context,
+              name : String, pos : Position, isMutable : Boolean) = {
     val sym = DeclSymbol(name, isMutable)
-    context.checkAdd(sym, pos)
+    context.checkAdd(sym, stmt, newContext, pos)
     sym
   }
 }
