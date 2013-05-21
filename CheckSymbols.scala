@@ -25,12 +25,49 @@ class Checker(tree : Stmt) {
 
     if (verbose) println("--- traverse expressions ---")
     new ExprVisitor(tree, determineExprType)
+
+    if (verbose) println("--- traverse statements with expressions ---")
+    def filterNone(cls : Stmt) = true
+    new StmtVisitor(tree, filterNone, checkStmtType)
   }
 }
 
 object Checker {
   import BasicTypes._
   import BaseContext.verbose
+
+  def checkStmtType(tree : Stmt) {
+    tree match {
+      case t@AssignStmt(lval, _, rval) => {
+        val rsym = rval.sym
+        val (retType, context) = resolveIdentType(tree, null, tree.context, lval)
+
+        if (retType.isInstanceOf[BoundClassSymbol] && rsym != null) {
+          t.sym = retType.asInstanceOf[BoundClassSymbol]
+          if (!classesEqual(t.sym, rsym))
+            SemanticError("tried to assign to different class type: " + t.sym, rval.pos)
+        } else {
+          if (rsym == null)
+            SemanticError("could not find type of expr", rval.pos)
+          else
+            SemanticError("could not find return type for ident " + lval, t.pos)
+        }
+      }
+      case t@IfStmt(cond, _, _) => {
+        if (cond.sym == null)
+          SemanticError("if statement condition type not determined", t.pos)
+        if (!classesEqual(cond.sym, resolveClassType(booleanType,tree)))
+          SemanticError("if statement condition must be of type boolean", t.pos)
+      }
+      case t@WhileStmt(expr1, _) => {
+        if (expr1.sym == null)
+          SemanticError("while statement condition type not determined", t.pos)
+        if (!classesEqual(expr1.sym, resolveClassType(booleanType,tree)))
+          SemanticError("while statement condition must be of type boolean", t.pos)
+      }
+      case _ => ;
+    }
+  }
 
   def determineDefType(tree : Stmt) {
     tree.asInstanceOf[DefStmt] match {
@@ -57,9 +94,11 @@ object Checker {
     tree.asInstanceOf[ClassStmt] match {
       case t@ClassStmt(name, _, _, Some(parent), _) => {
         val cls = resolveClassType(parent, tree)
-        t.context.extensions += cls.cs.context
+        if (cls != null)
+          t.context.extensions += cls.cs.context
         if (verbose) println(name + " this class symbol is " + t.sym)
-        t.sym.subtypes += cls
+        if (cls != null)
+          t.sym.subtypes += cls
         if (verbose) println(name + " resolved to subclass of " + cls)
       }
       case _ => ;
@@ -161,8 +200,12 @@ object Checker {
       if (!decl.isEmpty) {
         val typ = decl.get.declType
         if (verbose) println("\tresolved type for " + n.head + " = " + typ)
-        val newContext = typ.cs.context
-        return resolveIdentType(cls, typ, newContext, n.tail)
+        if (typ != null && typ.cs != null && typ.cs.context != null) {
+          val newContext = typ.cs.context
+          return resolveIdentType(cls, typ, newContext, n.tail)
+        } else {
+          return (NoSymbol(), BaseContext.context)
+        }
       } else {
         SemanticError("could not resolve type for: " + ident, cls.pos)
         return (NoSymbol(), BaseContext.context)
@@ -237,7 +280,7 @@ object Checker {
     )
 
     if (optSym.isEmpty) {
-      SemanticError("could not resolve type " + t.name.head + " stmt = " + tree, t.pos)
+      SemanticError("could not resolve type " + t.name.head, t.pos)
       //System.exit(1)
       null
     } else {
