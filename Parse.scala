@@ -29,6 +29,8 @@ object Parse extends StandardTokenParsers with App {
       println("--- successfully parsed AST ---")
       println(tree)
 
+      BaseContext.base = tree
+
       println("--- begin complete symbol collection ---")
       val col = new Collector(tree)
       col.start()

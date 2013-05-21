@@ -16,16 +16,21 @@ case class BoundClassSymbol(cs : ClassSymbol, generics : List[Symbol]) extends S
 }
 
 case class ClassSymbol(name : String, arity : Int) extends Symbol {
+  import scala.collection.mutable.ListBuffer
   var context : Context = new Context(None, false)
   override def toString = "class \"" + name + "\" (" + arity + ") "
+  var subtypes : ListBuffer[BoundClassSymbol] = ListBuffer()
 }
+
 case class DefSymbol(name : String) extends Symbol {
   var inTypes : List[BoundClassSymbol] = List()
   var retType : BoundClassSymbol = null
   override def toString = "def \"" + name + "\", in = " + inTypes + ", ret = " + retType
 }
+
 case class DeclSymbol(name : String, isMutable : Boolean) extends Symbol {
   var declType : BoundClassSymbol = null
   override def toString = (if (isMutable) "var" else "val") + " \"" + name + "\""
 }
+
 case class NoSymbol() extends Symbol

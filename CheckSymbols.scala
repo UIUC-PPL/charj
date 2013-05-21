@@ -3,9 +3,7 @@ package CharjParser
 import scala.util.parsing.input.{Positional,Position}
 
 class Checker(tree : Stmt) {
-  val booleanType = Type(List("boolean"), None)
-  val intType = Type(List("int"), None)
-  val unitType = Type(List("unit"), None)
+  import Checker._
 
   def start() = {
     println("--- traverse print classes ---")
@@ -27,6 +25,10 @@ class Checker(tree : Stmt) {
     println("--- traverse expressions ---")
     new ExprVisitor(tree, determineExprType)
   }
+}
+
+object Checker {
+  import BasicTypes._
 
   def determineDefType(tree : Stmt) {
     tree.asInstanceOf[DefStmt] match {
@@ -38,7 +40,7 @@ class Checker(tree : Stmt) {
           case None => resolveClassType(unitType, tree)
         }
         if (t.sym == null) {
-          println("Semantic error: could not resolve def types at " + t.pos)
+          SemanticError("could not resolve def types", t.pos)
           //System.exit(5)
         } else {
           t.sym.inTypes = inTypes
@@ -51,8 +53,11 @@ class Checker(tree : Stmt) {
 
   def determineClassType(tree : Stmt) {
     tree.asInstanceOf[ClassStmt] match {
-      case ClassStmt(name, _, _, Some(parent), _) => {
+      case t@ClassStmt(name, _, _, Some(parent), _) => {
         val cls = resolveClassType(parent, tree)
+        t.context.extensions += cls.cs.context
+        println(name + " this class symbol is " + t.sym)
+        t.sym.subtypes += cls
         println(name + " resolved to subclass of " + cls)
       }
       case _ => ;
@@ -68,7 +73,7 @@ class Checker(tree : Stmt) {
           case _ => false
         })
         if (sym == NoSymbol())
-          println("Semantic error: " + name + " not resolved at " + t.pos)
+          SemanticError(name + " not resolved", t.pos)
         else
           println("resolved " + name + " to " + thisSym.get + " with type: " + sym)
         thisSym.get.asInstanceOf[DeclSymbol].declType = sym.asInstanceOf[BoundClassSymbol]
@@ -89,40 +94,40 @@ class Checker(tree : Stmt) {
         if (retType.isInstanceOf[BoundClassSymbol])
           expr.sym = retType.asInstanceOf[BoundClassSymbol]
         else
-          println("Semantic error: could not find return type for def " + name + " at " + expr.pos)
+          SemanticError("could not find return type for def " + name, expr.pos)
       }
       case NumLiteral(str) => {
         val theInt = tryConvertToInt(str)
         if (!theInt.isEmpty)
-          expr.sym = resolveClassType(intType, tree)
+          expr.sym = resolveClassType(intType, cls)
       }
       case StrExpr(lst) => {
         val (retType, context) = resolveIdentType(cls, null, cls.context, lst)
         if (retType.isInstanceOf[BoundClassSymbol])
           expr.sym = retType.asInstanceOf[BoundClassSymbol]
         else
-          println("Semantic error: could not find return type for ident " + lst + " at " + expr.pos)
+          SemanticError("could not find return type for ident " + lst, expr.pos)
       }
-      case True() | False() => expr.sym = resolveClassType(booleanType, tree)
+      case True() | False() => expr.sym = resolveClassType(booleanType, cls)
       case AddExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case DivExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case SubExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case MulExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case AndExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case OrrExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
-      case ComExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
-      case LesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
-      case LeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
-      case GesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
-      case GeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, tree))
+      case ComExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, cls))
+      case LesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, cls))
+      case LeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, cls))
+      case GesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, cls))
+      case GeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(booleanType, cls))
       case NotExpr(l) => {
-        if (l.sym != resolveClassType(booleanType, tree))
-          println("Semantic error: boolean negation incorrect type: " + l.sym + " at " + l.pos)
+        if (!classesEqual(l.sym, resolveClassType(booleanType, cls)))
+          SemanticError("boolean negation incorrect type: " + l.sym, l.pos)
         else expr.sym = l.sym
       }
       case NegExpr(l) => {
-        if (l.sym != resolveClassType(intType, tree))
-          println("Semantic error: int negation incorrect type: " + l.sym + " at " + l.pos)
+        if (!classesEqual(l.sym, resolveClassType(intType, cls)))
+          SemanticError("int negation incorrect type: " + l.sym, l.pos)
         else expr.sym = l.sym
       }
       case _ => ;
@@ -138,9 +143,8 @@ class Checker(tree : Stmt) {
   }
 
   def checkBinarySet(l : Expression, r : Expression, cur : Expression, ret : BoundClassSymbol) {
-    if (l.sym != r.sym)
-      println("Semantic error: binary op " + cur + " with different types: "
-              + l.sym + " at " + l.pos +  ", " + r.sym + " at " + r.pos)
+    if (!classesEqual(l.sym, r.sym))
+      SemanticError("binary op " + cur + " with different types: " + l.sym + " at " + l.pos +  ", " + r.sym, r.pos)
     cur.sym = ret
   }
 
@@ -158,7 +162,7 @@ class Checker(tree : Stmt) {
         val newContext = typ.cs.context
         return resolveIdentType(cls, typ, newContext, n.tail)
       } else {
-        println("Semantic error: could not resolve type for: " + ident + " at " + cls.pos)
+        SemanticError("could not resolve type for: " + ident, cls.pos)
         return (NoSymbol(), BaseContext.context)
       }
     } else {
@@ -182,8 +186,7 @@ class Checker(tree : Stmt) {
     })
 
     if (foundSym.isEmpty) {
-      println("Semantic error: def " + methodName + ", in = " + lst + ", unknown at " + cls.pos +
-              ", searched context: " + context)
+      SemanticError("def " + methodName + ", in = " + lst + ", unknown, searched context: " + context, cls.pos)
       NoSymbol()
       //System.exit(1)
     } else {
@@ -200,7 +203,7 @@ class Checker(tree : Stmt) {
     })
 
     if (sym.isEmpty) {
-      println("Semantic error: symbol " + str2 + " unknown at " + cls.pos)
+      SemanticError("symbol " + str2 + " unknown", cls.pos)
       //System.exit(1)
       None
     } else {
@@ -214,7 +217,7 @@ class Checker(tree : Stmt) {
   def resolveClassType(t : Type, tree : Stmt) : BoundClassSymbol = {
     // @todo for now namespaces for types is not supported
     if (t.name.size != 1) {
-      println("Semantic error: type " + t + " not supported at " + t.pos)
+      SemanticError("type " + t + " not supported", t.pos)
       return null
     }
 
@@ -232,7 +235,7 @@ class Checker(tree : Stmt) {
     )
 
     if (optSym.isEmpty) {
-      println("Semantic error: could not resolve type " + t.name.head + " at " + t.pos)
+      SemanticError("could not resolve type " + t.name.head + " stmt = " + tree, t.pos)
       //System.exit(1)
       null
     } else {
@@ -240,5 +243,9 @@ class Checker(tree : Stmt) {
         case t@ClassSymbol(_, _) => BoundClassSymbol(t, genTypes)
       }
     }
+  }
+
+  def classesEqual(cls1 : BoundClassSymbol, cls2 : BoundClassSymbol) : Boolean = {
+    cls1 == cls2
   }
 }

@@ -2,7 +2,15 @@ package CharjParser
 
 import scala.util.parsing.input.{Positional,Position}
 
+object BasicTypes {
+  val booleanType = Type(List("boolean"), None)
+  val intType = Type(List("int"), None)
+  val unitType = Type(List("unit"), None)
+}
+
 class Collector(tree : Stmt) {
+  import BasicTypes._
+
   def start() = {
     traverseTree(tree, BaseContext.context)
     BaseContext.context.addInImplicits(null)
@@ -32,7 +40,7 @@ class Collector(tree : Stmt) {
         val con = newContext(context, tree, false)
         if (!generic.isEmpty)
           for (gen <- generic.get) {
-            val tcon = newContext(con, DefStmt(None,name,None,None,List()), false)
+            val tcon = newContext(con, DefStmt(None,name,None,Some(unitType), List()), false)
             addClass(con, gen, tcon, gen.name.head, 0, gen.pos)
           }
         t.sym = addClass(context, tree, con, name, arity, tree.pos)
