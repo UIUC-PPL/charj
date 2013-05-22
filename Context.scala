@@ -25,40 +25,39 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
     }
   }
 
-  def resolve(test : Symbol => Boolean) : Option[Symbol] = {
-    val lookup = lst.find(a => test(a._1))
+  def resolve(test : ((Symbol, Context)) => Boolean) : Option[Symbol] = {
+    val lookup = lst.find(a => test((a._1, this)))
     if (lookup.isEmpty) {
       var cons : Option[(Symbol,Stmt,Context)] = None
       lst.foreach(a => a._1 match {
         case ClassSymbol(_,_) => {
           if (cons == None)
-            cons = if (a._3 != null) a._3.lst.find{b => test(b._1) && b._1.isConstructor} else None
+            cons = if (a._3 != null) a._3.lst.find{b => test((b._1, a._3)) && b._1.isConstructor} else None
         }
         case _ => ;
       })
       if (cons.isEmpty) {
-        val optParent =
-          parent match {
-            case Some(x) => x.resolve(test)
-            case None => None
-          }
+        val optParent = if (!parent.isEmpty) parent.get.resolve(test) else None
         if (optParent.isEmpty) {
-          val ret = resolve(extensions, test)
-          ret
+          val res = resolve2(extensions, test)
+          return res
+        } else {
+          return optParent
         }
-        else optParent
       } else {
-        Some(cons.get._1)
+        return Some(cons.get._1)
       }
-    } else Some(lookup.get._1)
+    } else {
+      return Some(lookup.get._1)
+    }
   }
 
-  def resolve(lst : ListBuffer[Context], test : Symbol => Boolean) : Option[Symbol] = {
+  def resolve2(lst : ListBuffer[Context], test : ((Symbol, Context)) => Boolean) : Option[Symbol] = {
     if (lst.size > 0) {
       val res = lst.head.resolve(test)
       if (!res.isEmpty) return res
-      else resolve(lst.tail, test)
-    } else None
+      else return resolve2(lst.tail, test)
+    } else return None
   }
 
   def addInImplicits(parent : Context) {

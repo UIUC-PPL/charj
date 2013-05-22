@@ -129,8 +129,10 @@ object Checker {
     tree.asInstanceOf[ClassStmt] match {
       case t@ClassStmt(name, _, _, Some(parent), _) => {
         val cls = resolveClassType(parent, tree)
-        if (cls != null)
+        if (cls != null) {
+          if (verbose) println("adding context extension to " + name + ": for " + cls)
           t.context.extensions += cls.cs.context
+        }
         if (verbose) println(name + " this class symbol is " + t.sym)
         if (cls != null)
           t.sym.subtypes += cls
@@ -144,10 +146,10 @@ object Checker {
     tree.asInstanceOf[DeclStmt] match {
       case t@DeclStmt(_, name, Some(typ), _) => {
         val sym = resolveClassType(typ, tree)
-        val thisSym = tree.context.resolve(_ match {
+        val thisSym = tree.context.resolve{a : (Symbol,Context) => a._1 match {
           case DeclSymbol(n, _) => n == name
           case _ => false
-        })
+        }}
         if (sym == NoSymbol())
           SemanticError(name + " not resolved", t.pos)
         else
@@ -289,7 +291,7 @@ object Checker {
 
   def resolveFunType(cls : Stmt, methodName : String, context : Context, lst : List[Symbol]) : Symbol = {
     if (verbose) println("trying to resolve function " + methodName)
-    val foundSym = context.resolve(_ match {
+    val foundSym = context.resolve{a : (Symbol,Context) => a._1 match {
       case t@DefSymbol(name, _) => {
         if (name == methodName && t.inTypes.size == lst.size) {
           val toComp = (t.inTypes,lst).zipped.toList
@@ -307,7 +309,7 @@ object Checker {
         } else false
       }
       case _ => false
-    })
+    }}
 
     if (foundSym.isEmpty) {
       SemanticError("def " + methodName + ", in = " + lst + ", unknown, searched context: " + context, cls.pos)
@@ -329,11 +331,11 @@ object Checker {
       cls.enclosingClass.sym
     }
 
-    val sym = context.resolve(_ match {
+    val sym = context.resolve{a : (Symbol,Context) => a._1 match {
       // make sure it was defined before if it's the same context
-      case t@DeclSymbol(str, _) => str == str2 && (t.pos < cls.pos || cls.context != context || !context.ordered)
+      case t@DeclSymbol(str, _) => str == str2 && (t.pos < cls.pos || cls.context != a._2 || !a._2.ordered)
       case _ => false 
-    })
+    }}
 
     if (sym.isEmpty) {
       SemanticError("symbol " + str2 + " unknown", cls.pos)
@@ -360,12 +362,11 @@ object Checker {
     }
 
     val className = t.name.head
-    val optSym = tree.context.resolve(
-      _ match {
+    val optSym = tree.context.resolve{a : (Symbol,Context) => a._1 match {
         case ClassSymbol(name, num) => if (name != className || num != genTypes.size) false else true
         case _ => false
       }
-    )
+    }
 
     if (optSym.isEmpty) {
       SemanticError("could not resolve type " + t.name.head, t.pos)
@@ -379,6 +380,8 @@ object Checker {
   }
 
   def classesEqual(cls1 : BoundClassSymbol, cls2 : BoundClassSymbol) : Boolean = {
+    if (cls1 == null || cls2 == null || cls1.cs == null || cls2.cs == null)
+      return false;
     if (cls1.cs == cls2.cs) {
       val gens = cls1.generics zip cls2.generics
       for ((g1, g2) <- gens) {

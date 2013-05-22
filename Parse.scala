@@ -19,7 +19,7 @@ object Parse extends StandardTokenParsers with App {
                          ":", ".", ",", ";", "&&", "||", "!",
                          "<", "<=", ">", ">=", "+=", "-=", "#")
 
-  val input = Source.fromFile("../input.test").getLines.reduceLeft[String](_ + '\n' + _)
+  val input = Source.fromFile("../input4.test").getLines.reduceLeft[String](_ + '\n' + _)
   val tokens = new lexical.Scanner(input)
 
   val result = phrase(program)(tokens)
