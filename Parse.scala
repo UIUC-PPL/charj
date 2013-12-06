@@ -27,7 +27,7 @@ object Parse extends StandardTokenParsers with App {
   result match {
     case Success(tree, _) => {
       import BaseContext.verbose
-      verbose = false
+      verbose = true
 
       if (verbose) println("--- successfully parsed AST ---")
       if (verbose) println(tree)
@@ -83,9 +83,9 @@ object Parse extends StandardTokenParsers with App {
     }
 
   def classStmt = positioned(
-    "class" ~ isSystem ~ ident ~ generic.? ~ typeStmt.? ~ "{" ~ innerStmtList ~ "}"
+    "class" ~ isSystem ~ ident ~ genericOpen.? ~ typeStmt.? ~ "{" ~ innerStmtList ~ "}"
     ^^ { case _ ~ isSystem ~ ident ~ generic ~ typeStmt ~ _ ~ stmts ~ _ =>
-      ClassStmt(ident, isSystem, generic, typeStmt, stmts)
+      ClassStmt(ident, isSystem, if (generic.isEmpty) List() else generic.get, typeStmt, stmts)
     }
   )
 
@@ -122,7 +122,12 @@ object Parse extends StandardTokenParsers with App {
 
   def typeStmt = positioned(
     ":" ~ qualifiedIdent ~ generic.?
-    ^^ { case _ ~ qualIdent ~ generic => Type(qualIdent, generic) }
+    ^^ { case _ ~ qualIdent ~ generic => Type(
+      if (generic.isEmpty)
+        Bound(qualIdent.reduce(_ + _))
+      else
+        Fun(qualIdent.reduce(_ + _), generic.get)
+    ) }
   )
 
   def ifStmt = positioned(
@@ -158,9 +163,22 @@ object Parse extends StandardTokenParsers with App {
 
   def elseStmt = "else" ~> semiStmt
 
-  def generic : Parser[List[Type]] = "[" ~> qualifiedIdentList <~ "]"
+  def genericOpen : Parser[List[Term]] = "[" ~> qualifiedIdentOpen <~ "]"
+  def qualifiedIdentOpen = mkList(qualifiedIdent ~ genericOpen.? ^^ { case ident ~ maybeGeneric =>
+    if (maybeGeneric.isEmpty)
+        MVar(ident.reduce(_ + _))
+      else
+        Fun(ident.reduce(_ + _), maybeGeneric.get)
+   }, ",")
 
-  def qualifiedIdentList = mkList(positioned(qualifiedIdent ~ generic.? ^^ { case ident ~ maybeGeneric => Type(ident, maybeGeneric) }), ",")
+  def generic : Parser[List[Term]] = "[" ~> qualifiedIdentList <~ "]"
+
+  def qualifiedIdentList = mkList(qualifiedIdent ~ generic.? ^^ { case ident ~ maybeGeneric =>
+    if (maybeGeneric.isEmpty)
+        Bound(ident.reduce(_ + _))
+      else
+        Fun(ident.reduce(_ + _), maybeGeneric.get)
+   }, ",")
 
   def qualifiedIdent = mkList(ident, ".")
 
@@ -173,7 +191,8 @@ object Parse extends StandardTokenParsers with App {
 
   def newExpr = positioned(
     "new" ~ qualifiedIdent ~ generic.? ~ "(" ~ parameters.? ~ ")"
-    ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(ident, generic, params) }
+    ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(ident, if (generic.isEmpty) List() else generic.get,
+                                                              params) }
   )
 
   def parameters = mkList(expression, ",")

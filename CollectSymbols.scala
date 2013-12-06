@@ -3,10 +3,10 @@ package CharjParser
 import scala.util.parsing.input.{Positional,Position}
 
 object BasicTypes {
-  val booleanType = Type(List("boolean"), None)
-  val intType = Type(List("int"), None)
-  val unitType = Type(List("unit"), None)
-  val refType = Type(List("Ref"), Some(List(Type(List("T"), None))))
+  val booleanType = Bound("boolean")
+  val intType = Bound("int")
+  val unitType = Bound("unit")
+  val refType = Fun("Ref", List(MVar("T")))
 }
 
 class Collector(tree : Stmt) {
@@ -40,17 +40,20 @@ class Collector(tree : Stmt) {
     tree match {
       case StmtList(lst) => traverseTree(lst, context)
       case t@ClassStmt(name, _, generic, _, lst) => {
-        val arity = if (generic.isEmpty) 0 else generic.get.size
+        val arity = generic.size
         val con = newContext(context, tree, false)
         t.sym = addClass(context, tree, con, name, arity, tree.pos)
         t.sym.context = con
-        if (!generic.isEmpty)
-          for (gen <- generic.get) {
-            val tcon = newContext(con, DefStmt(None,name,None,Some(unitType), StmtList(List())), false)
-            val sym = addClass(con, gen, tcon, gen.name.head, 0, gen.pos)
-            sym.isAnything = true
-            t.sym.names += gen.name.head
-          }
+        con.sym = t.sym
+        t.sym.names = generic
+        // if (!generic.isEmpty)
+        //   for (gen <- generic) {
+        //     val tcon = newContext(con, DefStmt(None,name,None,Some(unitType), StmtList(List())), false)
+        //     val sym = addClass(con, gen, tcon, gen.name.head, 0, gen.pos)
+        //     tcon.sym = sym
+        //     sym.isAnything = true
+        //     t.sym.names += gen.full.n
+        //   }
         t.context = con
         enclosingClass = t
         traverseTree(lst, con)
@@ -61,6 +64,7 @@ class Collector(tree : Stmt) {
         val isAbstract = lst == EmptyStmt()
         val isConstructor = t.enclosingClass != null && t.enclosingClass.name == name
         t.sym = addDef(context, tree, con, name, tree.pos, isAbstract)
+        con.sym = enclosingClass.sym
         if (t.enclosingClass != null) {
           t.enclosingClass.sym.isAbstract = isAbstract
           t.enclosingClass.isAbstract = isAbstract
@@ -82,15 +86,25 @@ class Collector(tree : Stmt) {
       }
       case ForStmt(decls, _, cont, stmt) => {
         val con = newContext(context, tree, true)
+        con.sym = enclosingClass.sym
         traverseTree(decls, con)
         traverseTree(stmt, con)
       }
       case IfStmt(_, stmt1, stmt2) => {
-        traverseTree(stmt1, newContext(context, stmt1, true))
-        if (!stmt2.isEmpty)
-          traverseTree(stmt2, newContext(context, stmt2.get, true))
+        val con = newContext(context, stmt1, true)
+        con.sym = enclosingClass.sym
+        traverseTree(stmt1, con)
+        if (!stmt2.isEmpty) {
+          val con2 = newContext(context, stmt2.get, true)
+          con2.sym = enclosingClass.sym
+          traverseTree(stmt2, con2)
+        }
       }
-      case WhileStmt(_, stmt) => traverseTree(stmt, newContext(context, stmt, true))
+      case WhileStmt(_, stmt) => {
+        val con = newContext(context, stmt, true)
+        con.sym = enclosingClass.sym
+        traverseTree(stmt, con)
+      }
       case _ => ;
     }
   }

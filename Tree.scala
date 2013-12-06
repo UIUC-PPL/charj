@@ -15,10 +15,14 @@ abstract class Stmt extends Positional with GetName {
   var enclosingDef : DefStmt = null
 }
 
-case class ClassStmt(name : String, isSystem : Boolean, generic : Option[List[Type]],
+case class ClassStmt(name : String, isSystem : Boolean, generic : List[Term],
                      parent : Option[Type], lst : List[Stmt]) extends Stmt {
   var sym : ClassSymbol = null
   var isAbstract : Boolean = false
+  def getType() : Type = {
+    if (generic == List()) Type(Bound(name))
+    else Type(Fun(name, generic))
+  }
   override def getName() = pos + "-> class " + name + "[isAbstract = " + isAbstract + "]"
 }
 case class ChareStmt(name : String, lst : List[Stmt]) extends Stmt {
@@ -55,8 +59,8 @@ case class ReturnStmt(fact : Option[Expression]) extends Stmt {
 case class EmptyStmt() extends Stmt
 
 case class TypeParam(name : String, typ : Type) extends Stmt with HasBoundClass
-case class Type(name : List[String], generic : Option[List[Type]]) extends Stmt {
-   override def getName() = pos + "-> type " + name
+case class Type(full : Term) extends Stmt {
+  override def getName() = pos + "-> type " + full
 }
 
 trait HasBoundClass { var sym : BoundClassSymbol = null }
@@ -83,7 +87,7 @@ case class NotExpr(el : Expression) extends Expression
 case class NegExpr(el : Expression) extends Expression
 case class StrExpr(name : List[String]) extends Expression
 case class NewExpr(name : List[String],
-                   generic : Option[List[Type]],
+                   generic : List[Term],
                    param : Option[List[Expression]]) extends Expression
 case class True() extends Expression
 case class False() extends Expression

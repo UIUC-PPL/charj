@@ -1,55 +1,137 @@
-class Test {
-      val test : int = 5;
-      def test() : test.A[B] {
-          var aaa : int = (5 + 5 * 10) / 2 * 2;
-          var abc : xxx = test1 ( 88 );
-          var iii : Array[Int, Int] = test2() + -test4 + (!test3(2 + 4, abc(4), a) -2) + sqrt(45);
-          test(2, 3, abc());
-          5 + 6 * abc();
-          {
-            abc;
+class Test[T] {
+      val zz : int = mm;
+      val mm : int = 3;
+
+      def method1(a : int) {
+          val xx : Test[int] = Test();
+          xx.method2();
+          xx.method1(5);
+          method3(2);
+
+          val yy : Test[int] = Test();
+          val abc : int = 12;
+          yy.method3(10 + 23 / 10 * 23 + 1 + method2() + abc.xx.yy);
+      }
+
+      def method3(a : int) : Test[int] {
+          val a : int = 5;
+          val b : int = 5;
+          method4(5 < 3 + 4 || a == b);
+
+          val d : test = 3;
+          //val e : double = method1(d.xx.abc(3));
+
+          a = b + a;
+
+          if (5 + 2 == 2) {
+
           }
+
+          //val c : T = T.T();
       }
-      entry def method1() {
-            print("test is a" + test);
-      }
-      def method2(abc : int, test : Ref[String[Int]]) {
-            test();
-            if (a + 5) test2();
-            else test3();
 
-            for (var i = 0; i + 5 < 10; i += 1) {
-              test = 5;
-            }
+      def method2() : int { }
+      
+      def method4(a : boolean) : Test[int] { }
 
-            for (var i = 0, var j = 0;
-                 i < 10 && j < 20;
-                 i += 1, j -= 5) ;
+      def method5(a : T) : Test[T] { }
+}
 
-            if (aa) test5();
-            if (b + 2 == test && bcd) {
-               var aaa : int = test2();
-               bbb();
-            }
-
-            while (a < 10) {
-                  var a = 10;
-                  a += 12;
-            }
-
-            Abc.test();
-            var test : Ref[Abc] = new Abc();
-            val yyy : String = "test";
-			return;
+class test : int {
+      def a() {
+          val x : boolean = 1 + 3 < 5;
       }
 }
 
-chare Abc {
-      def abc() { }
-      def bef(test : int) { }
-      def yyy(test1 : Box[int], test2 : YYY) : int {
-         test = 2;
-         Abc.abc = 10;
-		 return test;
+class #int {
+      val xx : int = 2;
+      val yy : int = 3;
+
+      def abc(a : int) : test {
+      
       }
 }
+class #double {}
+class #boolean {}
+class #unit {}
+
+// class Test {
+//       val test : int = 5;
+//       def test() : testA[B] {
+//           var aaa : int = (5 + 5 * 10) / 2 * 2;
+//           var abc : xxx = test1 ( 88 );
+//           var iii : Array[int, int] = test2() + -test4 + (!test3(2 + 4, abc(4), a) -2) + sqrt(45);
+//           test(2, 3, abc());
+//           5 + 6 * abc();
+//           {
+//             abc;
+//           }
+//       }
+//       entry def method1() {
+//             print("test is a" + test);
+//       }
+//       def method2(abc : int, test : Ref[Array[string]]) {
+//             test();
+//             if (a + 5) test2();
+//             else test3();
+
+//             for (var i = 0; i + 5 < 10; i += 1) {
+//               test = 5;
+//             }
+
+//             for (var i = 0, var j = 0;
+//                  i < 10 && j < 20;
+//                  i += 1, j -= 5) ;
+
+//             if (aa) test5();
+//             if (b + 2 == test && bcd) {
+//                var aaa : int = test2();
+//                bbb();
+//             }
+
+//             while (a < 10) {
+//                   var a = 10;
+//                   a += 12;
+//             }
+
+//             Abc.test();
+//             var test : Ref[Abc] = new Abc();
+//             val yyy : String = "test";
+// 			return;
+//       }
+// }
+
+// class Abc {
+//       def abc() { }
+//       def bef(test : int) { }
+//       def yyy(test1 : Box[int], test2 : YYY) : int {
+//          test = 2;
+//          Abc.abc = 10;
+//          return test;
+//       }
+// }
+
+// class Test : ChareArray[int] {
+//      def abc() { }
+//      def abc() { }
+// }
+
+// class #int {
+//      def generate() { return "int32_t"; }
+// }
+
+// class #string {
+
+// }
+
+// class #Array[T] {
+//      def generate() { return "Array"; }
+// }
+
+// class #Array[T, T] {
+//      def generate() { return "Array2"; }
+// }
+
+// class #Ref[T] {
+
+// }
