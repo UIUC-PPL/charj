@@ -46,14 +46,12 @@ class Collector(tree : Stmt) {
         t.sym.context = con
         con.sym = t.sym
         t.sym.names = generic
-        // if (!generic.isEmpty)
-        //   for (gen <- generic) {
-        //     val tcon = newContext(con, DefStmt(None,name,None,Some(unitType), StmtList(List())), false)
-        //     val sym = addClass(con, gen, tcon, gen.name.head, 0, gen.pos)
-        //     tcon.sym = sym
-        //     sym.isAnything = true
-        //     t.sym.names += gen.full.n
-        //   }
+        // add generics to context for resolution, with a empty context
+        for (gen <- generic) {
+          val newCon = new Context(None, false)
+          val sym = addClass(con, gen, newCon, gen.asInstanceOf[MVar].t, 0, gen.pos)
+          t.sym.context.lst += ((sym, tree, newCon))
+        }
         t.context = con
         enclosingClass = t
         traverseTree(lst, con)
