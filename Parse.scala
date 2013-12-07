@@ -124,7 +124,7 @@ object Parse extends StandardTokenParsers with App {
     ":" ~ qualifiedIdent ~ generic.?
     ^^ { case _ ~ qualIdent ~ generic => Type(
       if (generic.isEmpty)
-        Bound(qualIdent.reduce(_ + _))
+        Tok(qualIdent.reduce(_ + _))
       else
         Fun(qualIdent.reduce(_ + _), generic.get)
     ) }
@@ -175,7 +175,7 @@ object Parse extends StandardTokenParsers with App {
 
   def qualifiedIdentList = mkList(qualifiedIdent ~ generic.? ^^ { case ident ~ maybeGeneric =>
     if (maybeGeneric.isEmpty)
-        Bound(ident.reduce(_ + _))
+        Tok(ident.reduce(_ + _))
       else
         Fun(ident.reduce(_ + _), maybeGeneric.get)
    }, ",")
@@ -185,8 +185,8 @@ object Parse extends StandardTokenParsers with App {
   def expression : Parser[Expression] = bOr
 
   def funcCall = positioned(
-    qualifiedIdent ~ "(" ~ parameters.? ~ ")"
-    ^^ { case ident ~ _ ~ params ~ _ => FunExpr(ident, params) }
+    qualifiedIdent ~ generic.? ~ "(" ~ parameters.? ~ ")"
+    ^^ { case ident ~ gen ~ _ ~ params ~ _ => FunExpr(ident, if (gen.isEmpty) List() else gen.get, params) }
   )
 
   def newExpr = positioned(

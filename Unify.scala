@@ -3,14 +3,37 @@ package CharjParser
 import scala.collection.mutable.{ListBuffer,ArrayBuffer}
 import scala.util.parsing.input.Positional
 
-abstract class Term extends Stmt
-case class Bound(t : String) extends Term { override def toString = "l\"" + t + "\"" }
-case class MVar(t : String) extends Term { override def toString = "?" + t }
-case class Fun(n : String, terms : List[Term]) extends Term { override def toString = n + "[" + terms + "]" }
+abstract class Term extends Stmt {
+  def getName : String
+  def getTerms : List[Term]
+}
+case class Bound(t : String) extends Term {
+  override def toString = "l\"" + t + "\""
+  override def getName = t
+  override def getTerms = List()
+}
+case class MVar(t : String) extends Term {
+  override def toString = "?" + t
+  override def getName = t
+  override def getTerms = List()
+}
+case class Fun(n : String, terms : List[Term]) extends Term {
+  override def toString = n + "[" + terms + "]"
+  override def getName = n
+  override def getTerms = terms
+}
+case class Tok(t : String) extends Term {
+  override def toString = "UuU(" + t + ")"
+  override def getName = t
+  override def getTerms = List()
+}
 
-object Unifier {
+case class Unifier(mustUnify : Boolean) {
+  var hasError : Boolean = false
+
   def UnifySemanticError(str : String) : List[(Term, Term)] = {
-    SemanticErrorNone(str)
+    if (mustUnify) SemanticErrorNone(str)
+    hasError = true
     List()
   }
 
@@ -29,6 +52,7 @@ object Unifier {
       case (Fun(n1,t1), Fun(n2,t2)) if (n1 != n2) => UnifySemanticError("unification fail: functions not identical")
       case (Bound(n1), Bound(n2)) if (n1 == n2) => subs
       case (Bound(n1), Bound(n2)) if (n1 != n2) => UnifySemanticError("unification fail: bound vars not identical")
+      case _ => UnifySemanticError("unification fail: terms don't match")
     }
   }
 

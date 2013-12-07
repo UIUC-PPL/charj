@@ -13,16 +13,18 @@ case class BoundClassSymbol(cs : ClassSymbol, bindings : List[(Term,Term)]) exte
 
 case class ClassSymbol(name : String, arity : Int) extends Symbol {
   import scala.collection.mutable.ListBuffer
-  var names : List[Term] = List()
+  var t : Term = null
+  //var names : List[Term] = List()
   var isAbstract : Boolean = false
   var context : Context = new Context(None, false)
-  override def toString = name + "[" + names + "]"
-  var subtypes : ArrayBuffer[BoundClassSymbol] = ArrayBuffer()
+  override def toString = t.toString
 }
 
 case class DefSymbol(name : String, isAbstract : Boolean) extends Symbol {
   var inTypes : List[BoundClassSymbol] = List()
   var retType : BoundClassSymbol = null
+  var isCons : Boolean = false
+  var classCons : ClassStmt = null
   override def toString = "def \"" + name + "\", in = " + inTypes +
                           ", ret = " + retType + ", isConstructor = " + isConstructor
 }

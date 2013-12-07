@@ -58,8 +58,10 @@ case class ReturnStmt(fact : Option[Expression]) extends Stmt {
 }
 case class EmptyStmt() extends Stmt
 
-case class TypeParam(name : String, typ : Type) extends Stmt with HasBoundClass
-case class Type(full : Term) extends Stmt {
+case class TypeParam(name : String, typ : Type) extends Stmt with HasBoundClass {
+  var decl : DeclSymbol = null
+}
+case class Type(var full : Term) extends Stmt {
   override def getName() = pos + "-> type " + full
 }
 
@@ -82,7 +84,7 @@ case class LeqExpr(el : Expression, er : Expression) extends Expression // <=
 case class GesExpr(el : Expression, er : Expression) extends Expression // >
 case class GeqExpr(el : Expression, er : Expression) extends Expression // >=
 case class DotExpr(el : Expression, er : StrLiteral) extends Expression // .
-case class FunExpr(name : List[String], param : Option[List[Expression]]) extends Expression
+case class FunExpr(name : List[String], generic : List[Term], param : Option[List[Expression]]) extends Expression
 case class NotExpr(el : Expression) extends Expression
 case class NegExpr(el : Expression) extends Expression
 case class StrExpr(name : List[String]) extends Expression

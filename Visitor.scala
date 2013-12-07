@@ -11,12 +11,13 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
 
     tree match {
       case StmtList(lst) => traverseTree(lst)
-      case t@ClassStmt(_, _, _, _, lst) => {
+      case t@ClassStmt(_, _, _, parent, lst) => {
         // set enclosing
         enclosingClass = t
         tree.enclosingClass = t
 
         maybeVisit(tree)
+        if (!parent.isEmpty) traverseTree(parent.get)
         traverseTree(lst)
 
         // unset enclosing class
@@ -26,18 +27,29 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         maybeVisit(tree)
         traverseTree(lst)
       }
-      case t@DefStmt(_, _, _, _, lst) => {
+      case t@DefStmt(_, _, nth, ret, lst) => {
         // set enclosing
         enclosingDef = t
         tree.enclosingDef = t
 
         maybeVisit(tree)
+
+        if (!nth.isEmpty) {
+          for (t <- nth.get) traverseTree(t)
+        }
+
+        if (!ret.isEmpty) maybeVisit(ret.get)
+
         traverseTree(lst)
 
         // set enclosing
         enclosingDef = null
       }
-      case t@DeclStmt(_, _, _, _) => maybeVisit(tree)
+      case t@TypeParam(_, typ) => maybeVisit(typ)
+      case t@DeclStmt(_, _, typ, _) => {
+        if (!typ.isEmpty) maybeVisit(typ.get)
+        maybeVisit(tree)
+      }
       case t@IfStmt(_, stmt1, stmt2) => {
         maybeVisit(tree)
         traverseTree(stmt1)
@@ -107,7 +119,7 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
         visit2(expr, s)
         visit(r, s)
       }
-      case t@FunExpr(_, params) => {
+      case t@FunExpr(_, _, params) => {
         if (!params.isEmpty) for (i <- params.get) visit(i, s)
         visit2(t, s)
       }

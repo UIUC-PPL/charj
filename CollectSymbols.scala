@@ -14,7 +14,7 @@ class Collector(tree : Stmt) {
 
   def start() = {
     traverseTree(tree, BaseContext.context)
-    BaseContext.context.addInImplicits(null)
+    //BaseContext.context.addInImplicits(null)
   }
 
   def print(context : Tuple2[Context, Stmt], indent : Int) {
@@ -39,29 +39,37 @@ class Collector(tree : Stmt) {
     tree.context = context
     tree match {
       case StmtList(lst) => traverseTree(lst, context)
-      case t@ClassStmt(name, _, generic, _, lst) => {
+      case t@ClassStmt(name, _, generic, parent, lst) => {
         val arity = generic.size
         val con = newContext(context, tree, false)
-        t.sym = addClass(context, tree, con, name, arity, tree.pos)
+        t.sym = addClass(context, tree, con, name, arity, tree.pos, generic, true)
         t.sym.context = con
         con.sym = t.sym
-        t.sym.names = generic
         // add generics to context for resolution, with a empty context
         for (gen <- generic) {
           val newCon = new Context(None, false)
-          val sym = addClass(con, gen, newCon, gen.asInstanceOf[MVar].t, 0, gen.pos)
+          val sym = addClass(con, gen, newCon, name + "_" + gen.asInstanceOf[MVar].t, 0, gen.pos, List(), false)
           t.sym.context.lst += ((sym, tree, newCon))
         }
         t.context = con
         enclosingClass = t
+        if (!parent.isEmpty)
+          traverseTree(parent.get, con)
         traverseTree(lst, con)
         enclosingClass = null
       }
-      case t@DefStmt(_, name, nthunks, _, lst) => {
+      case t@DefStmt(_, name, nthunks, ret, lst) => {
         val con = newContext(context, tree, true)
         val isAbstract = lst == EmptyStmt()
         val isConstructor = t.enclosingClass != null && t.enclosingClass.name == name
-        t.sym = addDef(context, tree, con, name, tree.pos, isAbstract)
+        if (t.enclosingClass != null &&
+            t.enclosingClass.name == name) {
+          t.sym = addDef(BaseContext.context, tree, con, name, tree.pos, isAbstract)
+          t.sym.isCons = true
+          t.sym.classCons = enclosingClass
+        } else {
+          t.sym = addDef(context, tree, con, name, tree.pos, isAbstract)
+        }
         con.sym = enclosingClass.sym
         if (t.enclosingClass != null) {
           t.enclosingClass.sym.isAbstract = isAbstract
@@ -70,17 +78,23 @@ class Collector(tree : Stmt) {
           t.isConstructor = isConstructor
         }
         if (!nthunks.isEmpty) {
-          for (param <- nthunks.get)
-            addDecl(con, tree, null, param.name, param.pos, false)
+          for (param <- nthunks.get) {
+            param.decl = addDecl(con, tree, null, param.name, param.pos, false)
+            param.context = con
+            traverseTree(param, con)
+          }
         }
+        traverseTree(ret, con)
         traverseTree(lst, con)
       }
-      case t@DeclStmt(mutable, name, _, expr) => {
+      case t@TypeParam(_, typ) => traverseTree(typ, context)
+      case t@DeclStmt(mutable, name, typ, expr) => {
         if (expr.isEmpty && t.enclosingClass != null) {
           t.enclosingClass.sym.isAbstract = true
           t.enclosingClass.isAbstract = true
         }
         t.sym = addDecl(context, tree, null, name, tree.pos, mutable)
+        if (!typ.isEmpty) traverseTree(typ.get, context)
       }
       case ForStmt(decls, _, cont, stmt) => {
         val con = newContext(context, tree, true)
@@ -119,8 +133,16 @@ class Collector(tree : Stmt) {
   }
 
   def addClass(context : Context, stmt : Stmt, newContext : Context,
-               name : String, arity : Int, pos : Position) = {
+               name : String, arity : Int, pos : Position, generic : List[Term],
+               isBound : Boolean) = {
     val sym = ClassSymbol(name, arity)
+    // set up type term for the class symbol
+    if (generic == List() && isBound)
+      sym.t = Bound(name)
+    else if (generic == List() && !isBound)
+      sym.t = MVar(name)
+    else
+      sym.t = Fun(name, generic)
     context.checkAdd(sym, stmt, newContext, pos)
     sym
   }

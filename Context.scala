@@ -28,7 +28,8 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
 
   def resolve(test : ((Symbol, Context)) => Boolean,
               isInst : Boolean = false,
-              binding : List[(Term,Term)] = List()) : Option[Symbol] = {
+              binding : List[(Term,Term)] = List(),
+              newTerm : Term = null) : Option[Symbol] = {
     println("resolve: sym = " + sym + ", binding = " + binding)
     val lookup = lst.find(a => test((a._1, this)))
     if (lookup.isEmpty) {
@@ -51,13 +52,15 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
           var subtype : Option[Symbol] = None
 
           extensions.foreach(ext => {
-            println("\t\t --- --- searching extensions: " + ext)
-            //if (subtype == None) {
-            //if (!isInst)
-            //subtype = ext.cs.context.resolve(test, true, (sym.asInstanceOf[ClassSymbol].names, ext.generics))
-            //else
-            //subtype = ext.cs.context.resolve(test, true, Unifier.unifyTerms(sym.asInstanceOf[ClassSymbol].names, ext.cs.names, binding))
-            //}
+            println("\t\t --- --- searching extensions: " + ext + ", nt = " + newTerm)
+            if (subtype == None) {
+              //if (!isInst)
+                //subtype = ext.cs.context.resolve(test, true, (sym.asInstanceOf[ClassSymbol].names, ext.generics))
+              //else
+              val binds = ext.bindings ++ binding
+              val nt = Unifier(true).subst(ext.cs.t, binds)
+              subtype = ext.cs.context.resolve(test, true, ext.bindings ++ binding, nt)
+            }
           })
 
           return subtype
@@ -70,56 +73,6 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
       }
     } else {
       return Some(lookup.get._1)
-    }
-  }
-
-  // def resolve2(lst : ArrayBuffer[BoundClassSymbol], cur : Int, 
-  //              test : ((Symbol, Context)) => Boolean) : Option[Symbol] = {
-  //   if (lst.size > 0) {
-  //     val res = lst.head.cs.context.resolve(test)
-  //     if (!res.isEmpty) return res
-  //     else return resolve2(lst.tail, cur + 1, test)
-  //   } else return None
-  // }
-
-  // def useMapping(mapping : ListBuffer[(String, Symbol)], generics : ArrayBuffer[Symbol]) : ArrayBuffer[Symbol] = {
-  //   generics.map(gen => {
-  //     val gen2 = gen.asInstanceOf[BoundClassSymbol]
-  //     var generics : ArrayBuffer[Symbol] = ArrayBuffer()
-  //     var newBcs : BoundClassSymbol = null
-  //     if (gen2.generics.size > 0)
-  //       newBcs = BoundClassSymbol(gen2.cs, useMapping(mapping, gen2.generics))
-  //     else {
-  //       val found = Checker.tryFind(gen2.cs.name, mapping)
-  //       val newCs = if (found.isEmpty) gen2.cs else found.get.asInstanceOf[ClassSymbol]
-  //       newBcs = BoundClassSymbol(newCs, ArrayBuffer())
-  //     }
-  //     newBcs
-  //   })
-  // }
-
-  // def instantiateWithTypeRecur(bcs : BoundClassSymbol) : ArrayBuffer[BoundClassSymbol] = {
-  //   println("instantiateWithTypeRecur: for " + bcs)
-  //   bcs.cs.subtypes.map(sub => {
-  //     val mapping = bcs.cs.names zip bcs.generics
-  //     BoundClassSymbol(sub.cs, useMapping(mapping, sub.generics))
-  //   })
-  // }
-
-  def addInImplicits(parent : Context) {
-    for ((sym,stmt,con) <- lst) {
-      sym match {
-        case ClassSymbol(name, _) => {
-          val stmt2 = DefStmt(None,name,None,None,StmtList(List()))
-          // artifically set position
-          stmt2.pos = stmt.pos
-          val artSym = DefSymbol(name, false)
-          artSym.retType = Checker.resolveClassType(Type(BasicTypes.unitType), BaseContext.base)
-          con.checkAdd(artSym, stmt2, null, stmt.pos)
-        }
-        case _ => ;
-      }
-      if (con != null) con.addInImplicits(this)
     }
   }
 
