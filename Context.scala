@@ -27,10 +27,8 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
   }
 
   def resolve(test : ((Symbol, Context)) => Boolean,
-              isInst : Boolean = false,
-              binding : List[(Term,Term)] = List(),
-              newTerm : Term = null) : Option[Symbol] = {
-    println("resolve: sym = " + sym + ", binding = " + binding)
+              binding : List[(Term,Term)] = List()) : Option[(Symbol,List[(Term,Term)])] = {
+    //println("resolve: sym = " + sym + ", binding = " + binding)
     val lookup = lst.find(a => test((a._1, this)))
     if (lookup.isEmpty) {
       var cons : Option[(Symbol,Stmt,Context)] = None
@@ -45,34 +43,27 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
       })
 
       if (cons.isEmpty) {
-        val optParent = if (!parent.isEmpty) parent.get.resolve(test) else None
+        val optParent = if (!parent.isEmpty) parent.get.resolve(test, binding) else None
 
         // try parent classes to resolve symbol
         if (optParent.isEmpty) {
-          var subtype : Option[Symbol] = None
+          var subtype : Option[(Symbol,List[(Term,Term)])] = None
 
           extensions.foreach(ext => {
-            println("\t\t --- --- searching extensions: " + ext + ", nt = " + newTerm)
+            println("\t\t --- --- searching extensions: " + ext)
             if (subtype == None) {
-              //if (!isInst)
-                //subtype = ext.cs.context.resolve(test, true, (sym.asInstanceOf[ClassSymbol].names, ext.generics))
-              //else
-              val binds = ext.bindings ++ binding
-              val nt = Unifier(true).subst(ext.cs.t, binds)
-              subtype = ext.cs.context.resolve(test, true, ext.bindings ++ binding, nt)
+              subtype = ext.cs.context.resolve(test, ext.bindings ++ binding)
             }
           })
-
           return subtype
         } else {
           return optParent
         }
-
       } else {
-        return Some(cons.get._1)
+        return Some(cons.get._1, binding)
       }
     } else {
-      return Some(lookup.get._1)
+      return Some(lookup.get._1, binding)
     }
   }
 

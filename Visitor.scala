@@ -45,7 +45,7 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         // set enclosing
         enclosingDef = null
       }
-      case t@TypeParam(_, typ) => maybeVisit(typ)
+      case t@TypeParam(_, typ) => {maybeVisit(t); maybeVisit(typ)}
       case t@DeclStmt(_, _, typ, _) => {
         if (!typ.isEmpty) maybeVisit(typ.get)
         maybeVisit(tree)

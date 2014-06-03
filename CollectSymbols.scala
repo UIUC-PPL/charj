@@ -42,15 +42,17 @@ class Collector(tree : Stmt) {
       case t@ClassStmt(name, _, generic, parent, lst) => {
         val arity = generic.size
         val con = newContext(context, tree, false)
-        t.sym = addClass(context, tree, con, name, arity, tree.pos, generic, true)
+        t.generic = generic.map{ gen => {
+          val newCon = new Context(None, false)
+          val newGen = MVar(name + "_" + gen.asInstanceOf[MVar].t)
+          val sym = addClass(con, newGen, newCon, newGen.asInstanceOf[MVar].t, 0, gen.pos, List(), false)
+          con.lst += ((sym, tree, newCon))
+          newGen
+        }}
+        // do not use generic past this point
+        t.sym = addClass(context, tree, con, name, arity, tree.pos, t.generic, true)
         t.sym.context = con
         con.sym = t.sym
-        // add generics to context for resolution, with a empty context
-        for (gen <- generic) {
-          val newCon = new Context(None, false)
-          val sym = addClass(con, gen, newCon, name + "_" + gen.asInstanceOf[MVar].t, 0, gen.pos, List(), false)
-          t.sym.context.lst += ((sym, tree, newCon))
-        }
         t.context = con
         enclosingClass = t
         if (!parent.isEmpty)
@@ -139,9 +141,9 @@ class Collector(tree : Stmt) {
     // set up type term for the class symbol
     if (generic == List() && isBound)
       sym.t = Bound(name)
-    else if (generic == List() && !isBound)
+    else if (generic == List() && !isBound) {
       sym.t = MVar(name)
-    else
+    } else
       sym.t = Fun(name, generic)
     context.checkAdd(sym, stmt, newContext, pos)
     sym

@@ -17,8 +17,18 @@ case class MVar(t : String) extends Term {
   override def getName = t
   override def getTerms = List()
 }
+case class Namespace(n : String, t : Term) extends Term {
+  override def toString = "N_" + n + "(" + t + ")"
+  override def getName = n
+  override def getTerms = List(t)
+}
+case class MaybeNamespace(n : String, t : Term) extends Term {
+  override def toString = "MN_" + n + "(" + t + ")"
+  override def getName = n
+  override def getTerms = List(t)
+}
 case class Fun(n : String, terms : List[Term]) extends Term {
-  override def toString = n + "[" + terms + "]"
+  override def toString = n + "[" + terms.foldRight("")((x,y) => x + "," + y) + "]"
   override def getName = n
   override def getTerms = terms
 }
@@ -48,9 +58,16 @@ case class Unifier(mustUnify : Boolean) {
       case (MVar(t1), MVar(t2)) if (t1 == t2) => subs
       case (MVar(t1), _) => unifyVar(MVar(t1), term2, subs)
       case (_, MVar(t2)) => unifyVar(MVar(t2), term1, subs)
+      case (Namespace(n1,t1), Namespace(n2,t2)) if (n1 == n2) => unifyTerm(t1, t2, subs)
+      case (MaybeNamespace(n1,t1), Namespace(n2,t2)) if (n1 == n2) => unifyTerm(t1, t2, subs)
+      case (Namespace(n1,t1), MaybeNamespace(n2,t2)) if (n1 == n2) => unifyTerm(t1, t2, subs)
+      case (MaybeNamespace(n1,t1), t2) => unifyTerm(t1, t2, subs)
+      case (t1, MaybeNamespace(n1,t2)) => unifyTerm(t1, t2, subs)
       case (Fun(n1,t1), Fun(n2,t2)) if (n1 == n2) => unifyTerms(t1, t2, subs)
       case (Fun(n1,t1), Fun(n2,t2)) if (n1 != n2) => UnifySemanticError("unification fail: functions not identical")
       case (Bound(n1), Bound(n2)) if (n1 == n2) => subs
+      case (Bound(n1), Tok(n2)) if (n1 == n2) => subs
+      case (Tok(n1), Bound(n2)) if (n1 == n2) => subs
       case (Bound(n1), Bound(n2)) if (n1 != n2) => UnifySemanticError("unification fail: bound vars not identical")
       case _ => UnifySemanticError("unification fail: terms don't match")
     }
@@ -83,8 +100,10 @@ case class Unifier(mustUnify : Boolean) {
   def subst(term : Term, subs : List[(Term, Term)]) : Term = {
     (term, subs) match {
       case (_, List()) => term
-      case (MVar(_), _) if (!subs.find(a => a._1 == term).isEmpty) => subs.find(a => a._1 == term).get._2
+      case (MVar(_), _) if (!subs.find(a => a._1 == term).isEmpty) => subst(subs.find(a => a._1 == term).get._2, subs)
       case (Fun(s1,terms), _) => Fun(s1,substAll(terms,subs))
+      case (Namespace(n1, t1), _) => Namespace(n1, subst(t1, subs))
+      case (MaybeNamespace(n1, t1), _) => MaybeNamespace(n1, subst(t1, subs))
       case (_, _) => term
     }
   }

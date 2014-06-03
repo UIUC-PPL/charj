@@ -15,7 +15,7 @@ abstract class Stmt extends Positional with GetName {
   var enclosingDef : DefStmt = null
 }
 
-case class ClassStmt(name : String, isSystem : Boolean, generic : List[Term],
+case class ClassStmt(name : String, isSystem : Boolean, var generic : List[Term],
                      parent : Option[Type], lst : List[Stmt]) extends Stmt {
   var sym : ClassSymbol = null
   var isAbstract : Boolean = false
