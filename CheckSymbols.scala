@@ -190,15 +190,14 @@ object Checker {
         if (cls != null) t.context.extensions += cls
         if (verbose) println("\t subclass of " + cls)
 
-        // Code to compute the levels in the inheritance tree. This
-        // code traverses up and down the tree and classes are
-        // introduced, building the parent-child relationship both
-        // ways
+        // Compute the levels in the inheritance tree. Traverse up
+        // and down the tree as classes are introduced, building the
+        // parent-child relationship both ways
         cls.cs.children += t.sym
         if (cls.cs.level != -1) t.sym.level = cls.cs.level + 1
       }
       case t@ClassStmt(name, _, _, None, _) => {
-        // Code to propagate levels up the inheritance tree, once the
+        // Propagate level counts up the inheritance tree, once the
         // bottom is reached
         t.sym.level = 1
         setChildrenLevelRecur(t.sym);
