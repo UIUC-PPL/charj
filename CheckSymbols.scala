@@ -8,36 +8,49 @@ class Checker(tree : Stmt) {
   import BaseContext.verbose
 
   def start() = {
+    // Print out all the class names and whether they are detected to
+    // be abstract or not
     if (verbose) println("###\n### traverse print classes ###\n###")
     def filterClass(cls : Stmt) = cls.isInstanceOf[ClassStmt]
     def printClass(cls : Stmt) = if (verbose) println("found class name = " + cls.asInstanceOf[ClassStmt].name +
                                                       ", abstract = " + cls.asInstanceOf[ClassStmt].isAbstract)
     new StmtVisitor(tree, filterClass, printClass);
 
+    // Resolve all free vars, bound, and literals, by searching
+    // contexts and replacing unknown "Tok" terms
     if (verbose) println("###\n### traverse resolve free vars ###\n###")
     def filterType(cls : Stmt) = cls.isInstanceOf[Type]
     new StmtVisitor(tree, filterType, findFreeVars);
     new ExprVisitor(tree, findFreeVarsExpr);
 
+    // Find subclasses for each class along with level in inheritance
+    // hierarchy
     if (verbose) println("###\n### traverse resolve class type ###\n###")
     new StmtVisitor(tree, filterClass, determineClassType);
 
+    // Print the level for each class
     if (verbose) println("###\n### traverse print class level ###\n###")
     def printClassLevel(cls : Stmt) = println(cls.pos + ": class name = " + cls.asInstanceOf[ClassStmt].name +
                                               ", level = " + cls.asInstanceOf[ClassStmt].sym.level)
     new StmtVisitor(tree, filterClass, printClassLevel);
 
+    // Resolve the type (symbol) for each decl (var or val)
     if (verbose) println("###\n### traverse resolve decl type ###\n###")
     def filterDecls(cls : Stmt) = cls.isInstanceOf[DeclStmt] || cls.isInstanceOf[TypeParam]
     new StmtVisitor(tree, filterDecls, determineDeclType)
 
+    // Resolve the type (symbol) for each def (function/method)
     if (verbose) println("###\n### traverse resolve def type ###\n###")
     def filterDefs(cls : Stmt) = cls.isInstanceOf[DefStmt]
     new StmtVisitor(tree, filterDefs, determineDefType)
 
+    // Traverse all expressions and propagate types, check binary
+    // operators
     if (verbose) println("###\n### traverse expressions ###\n###")
     new ExprVisitor(tree, determineExprType)
 
+    // Traverse all statements and ensure the types are correct for
+    // each input expression
     if (verbose) println("###\n### traverse statements with expressions ###\n###")
     def filterNone(cls : Stmt) = true
     new StmtVisitor(tree, filterNone, checkStmtType)
