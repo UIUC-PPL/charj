@@ -16,7 +16,7 @@ abstract class Stmt extends Positional with GetName {
 }
 
 case class ClassStmt(name : String, isSystem : Boolean, var generic : List[Term],
-                     parent : Option[Type], lst : List[Stmt]) extends Stmt {
+                     parent : Option[Type], var lst : List[Stmt]) extends Stmt {
   var sym : ClassSymbol = null
   var isAbstract : Boolean = false
   def getType() : Type = {

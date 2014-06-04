@@ -55,9 +55,19 @@ class Collector(tree : Stmt) {
         con.sym = t.sym
         t.context = con
         enclosingClass = t
+
+        // add in a "this" decl for type checking
+        val thisDecl = DeclStmt(false, "this",
+                                Some(Type(if (generic.isEmpty) Tok(name) else Fun(name, generic))),
+                                Some(Null())
+                              )
+        thisDecl.pos = t.pos
+        // add in the "this" decl
+        t.lst = thisDecl::lst
+
         if (!parent.isEmpty)
           traverseTree(parent.get, con)
-        traverseTree(lst, con)
+        traverseTree(t.lst, con)
         enclosingClass = null
       }
       case t@DefStmt(_, name, nthunks, ret, lst) => {

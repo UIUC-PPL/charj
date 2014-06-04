@@ -5,7 +5,6 @@ import scala.collection.mutable.ArrayBuffer
 
 /*
  * Todos:
- * 'this' for class self reference
  * syntax for marking entry methods
  * LCA algorithm for classesEqual inheritance hierarchy traversal
  * arbitrary operators
@@ -15,6 +14,10 @@ import scala.collection.mutable.ArrayBuffer
  * first-class functions
  * multiple inheritance (syntax, semantics)
  * chare arrays, sections, etc.
+ *
+ * 
+ * Completed todos:
+ * 'this' for class self reference
  */
 
 class Checker(tree : Stmt) {
