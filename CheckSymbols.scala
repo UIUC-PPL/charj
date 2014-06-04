@@ -83,7 +83,7 @@ object Checker {
       case t@AssignStmt(lval, _, rval) => {
         println(t.pos + ": check assign of: rsym = " + rval.sym + ", lsym = " + lval.sym)
 
-        if (!classesEqual(rval.sym, lval.sym) && rval != Null())
+        if (!ClassEquality.equal(rval.sym, lval.sym) && rval != Null())
           SemanticError("tried to assign to different class type: " + t.sym, rval.pos)
       }
       case t@IfStmt(cond, _, _) => {
@@ -91,13 +91,13 @@ object Checker {
 
         if (cond.sym == null)
           SemanticError("if statement condition type not determined", t.pos)
-        if (!classesEqual(cond.sym, resolveClassType(Type(booleanType),tree)))
+        if (!ClassEquality.equal(cond.sym, resolveClassType(Type(booleanType),tree)))
           SemanticError("if statement condition must be of type boolean", t.pos)
       }
       case t@WhileStmt(expr1, _) => {
         if (expr1.sym == null)
           SemanticError("while statement condition type not determined", t.pos)
-        if (!classesEqual(expr1.sym, resolveClassType(Type(booleanType),tree)))
+        if (!ClassEquality.equal(expr1.sym, resolveClassType(Type(booleanType),tree)))
           SemanticError("while statement condition must be of type boolean", t.pos)
       }
       case t@DeclStmt(_, _, optType, Some(expr1)) => {
@@ -107,7 +107,7 @@ object Checker {
           SemanticError("decl statement condition type not determined", t.pos)
         if (optType.isEmpty)
           SemanticError("type required on decl", t.pos)
-        if (!classesEqual(expr1.sym, resolveClassType(optType.get, tree)) && expr1 != Null()) {
+        if (!ClassEquality.equal(expr1.sym, resolveClassType(optType.get, tree)) && expr1 != Null()) {
           val typ = resolveClassType(optType.get, tree)
           SemanticError("decl type and expression must match: " + expr1.sym + " and " + typ, t.pos)
         }
@@ -116,10 +116,10 @@ object Checker {
         println(t.pos + ": check return stmt")
 
         if (optExp.isEmpty) {
-          if (!classesEqual(t.enclosingDef.sym.retType, resolveClassType(Type(unitType),tree)))
+          if (!ClassEquality.equal(t.enclosingDef.sym.retType, resolveClassType(Type(unitType),tree)))
             SemanticError("return type of def must be unit (or not present)", t.pos)
         } else if (optExp.get.sym != null) {
-          if (!classesEqual(t.enclosingDef.sym.retType, optExp.get.sym))
+          if (!ClassEquality.equal(t.enclosingDef.sym.retType, optExp.get.sym))
             SemanticError("return type of def must match declared: " + optExp.get.sym, t.pos)
         } else {
           SemanticError("unable to resolve type of return", t.pos)
@@ -316,12 +316,12 @@ object Checker {
       case GesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
       case GeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
       case NotExpr(l) => {
-        if (!classesEqual(l.sym, resolveClassType(Type(booleanType), cls)))
+        if (!ClassEquality.equal(l.sym, resolveClassType(Type(booleanType), cls)))
           SemanticError("boolean negation incorrect type: " + l.sym, l.pos)
         else expr.sym = l.sym
       }
       case NegExpr(l) => {
-        if (!classesEqual(l.sym, resolveClassType(Type(intType), cls)))
+        if (!ClassEquality.equal(l.sym, resolveClassType(Type(intType), cls)))
           SemanticError("int negation incorrect type: " + l.sym, l.pos)
         else expr.sym = l.sym
       }
@@ -339,7 +339,7 @@ object Checker {
   }
 
   def checkBinarySet(l : Expression, r : Expression, cur : Expression, ret : BoundClassSymbol) {
-    if (!classesEqual(l.sym, r.sym))
+    if (!ClassEquality.equal(l.sym, r.sym))
       SemanticError("binary op " + cur + " with different types: " + l.sym + " at " + l.pos +  ", " + r.sym, r.pos)
     cur.sym = ret
   }
@@ -482,12 +482,5 @@ object Checker {
       null
     } else
       ret.get
-  }
-
-  def classesEqual(l : BoundClassSymbol, r : BoundClassSymbol) : Boolean = {
-    val l1 = Unifier(true).subst(l.cs.t, l.bindings)
-    val r1 = Unifier(true).subst(r.cs.t, r.bindings)
-    if (verbose) println("checkBinarySet: l1 = " + l1 + ", r1 = " + r1)
-    Unifier(false).isEqual(l1, r1)
   }
 }
