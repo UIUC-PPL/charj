@@ -3,6 +3,20 @@ package CharjParser
 import scala.util.parsing.input.{Positional,Position}
 import scala.collection.mutable.ArrayBuffer
 
+/*
+ * Todos:
+ * 'this' for class self reference
+ * syntax for marking entry methods
+ * LCA algorithm for classesEqual inheritance hierarchy traversal
+ * arbitrary operators
+ * contig blocks of data for arrays
+ * how to communicate with other languages (extern/etc.)
+ * for statement static checking
+ * first-class functions
+ * multiple inheritance (syntax, semantics)
+ * chare arrays, sections, etc.
+ */
+
 class Checker(tree : Stmt) {
   import Checker._
   import BaseContext.verbose
@@ -348,7 +362,7 @@ object Checker {
       case t@DefSymbol(name, _) => {
         if (name == methodName && t.inTypes.size == lst.size) {
           var constructor_bindings : List[(Term, Term)] = List()
-          if (t.isCons) {
+          if (t.isCons && gens != List()) {
             if (verbose) println("\tis constructor def")
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
             constructor_bindings = Unifier(true).unifyTerm(Fun(name, gens), t.classCons.getType().full, List())
