@@ -84,7 +84,7 @@ case class LeqExpr(el : Expression, er : Expression) extends Expression // <=
 case class GesExpr(el : Expression, er : Expression) extends Expression // >
 case class GeqExpr(el : Expression, er : Expression) extends Expression // >=
 case class DotExpr(el : Expression, er : StrLiteral) extends Expression // .
-case class FunExpr(name : List[String], generic : List[Term], param : Option[List[Expression]]) extends Expression
+case class FunExpr(name : List[String], var generic : List[Term], param : Option[List[Expression]]) extends Expression
 case class NotExpr(el : Expression) extends Expression
 case class NegExpr(el : Expression) extends Expression
 case class StrExpr(name : List[String]) extends Expression

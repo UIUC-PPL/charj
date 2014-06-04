@@ -18,6 +18,7 @@ class Checker(tree : Stmt) {
     if (verbose) println("--- traverse resolve free vars ---")
     def filterType(cls : Stmt) = cls.isInstanceOf[Type]
     new StmtVisitor(tree, filterType, findFreeVars);
+    new ExprVisitor(tree, findFreeVarsExpr);
 
     if (verbose) println("--- traverse resolve class type ---")
     new StmtVisitor(tree, filterClass, determineClassType);
@@ -96,6 +97,17 @@ object Checker {
   //     case _ => ;
   //   }
   // }
+
+  def findFreeVarsExpr(expr : Expression, cls : Stmt) {
+    expr match {
+      case t@FunExpr(_,_,_) => {
+        println("resolving generics for " + t.generic)
+        t.generic = t.generic.map{checkTerm(_, cls)}
+        println("resolved to " + t.generic)
+      }
+      case _ => ;
+    }
+  }
 
   def findFreeVars(tree : Stmt) {
     tree match {
@@ -202,9 +214,10 @@ object Checker {
         val types : List[BoundClassSymbol] = exprs.map(_.sym)
         val (sym, term, con) = findIdentType(cls, null, cls.context, name.dropRight(1), null)
 
-        if (verbose) println("function call: " + name + ", sym = " + sym)
+        if (verbose) println(expr.pos + ": function call: " + name + ", sym = " + sym)
 
-        var (sym2, term2, con2) = findFunType(cls, name.last, con, types, gens)
+        var (sym2, term2, con2) = findFunType(cls, name.last, con, types, gens,
+                                              if (sym != null) sym.bindings else List())
 
         if (sym != null && sym2 != null)
           sym2.bindings = sym2.bindings ++ sym.bindings
@@ -290,20 +303,32 @@ object Checker {
     } else (sym, t, context)
   }
 
-  def findFunType(cls : Stmt, methodName : String, context : Context, lst : List[BoundClassSymbol], gens : List[Term]) : (BoundClassSymbol, Term, Context) = {
+  def findFunType(cls : Stmt, methodName : String, context : Context, lst : List[BoundClassSymbol],
+                  gens : List[Term], bindings : List[(Term,Term)]) : (BoundClassSymbol, Term, Context) = {
     if (verbose) println("trying to resolve function " + methodName)
+    
+
     val sym = context.resolve{a : (Symbol,Context) => a._1 match {
       case t@DefSymbol(name, _) => {
         if (name == methodName && t.inTypes.size == lst.size) {
+          var constructor_bindings : List[(Term, Term)] = List()
+          if (t.isCons) {
+            println("--- is constructor def ---")
+            if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
+            constructor_bindings = Unifier(true).unifyTerm(Fun(name, gens), t.classCons.getType().full, List())
+            println("constructor bindings = " + constructor_bindings)
+          }
+
           val toComp = (t.inTypes,lst).zipped.toList
           var isMatching = true
           for ((t1, t2) <- toComp) {
             println("before: t1 = " + t1 + ", t2 = " + t2)
-            val u = Unifier(true)
-            val sub1 = u.subst(t1.cs.t, t1.bindings)
+            val u = Unifier(false)
+            val sub1 = u.subst(t1.cs.t, t1.bindings ++ constructor_bindings ++ bindings)
             val sub2 = u.subst(t2.cs.t, t2.bindings)
             println("after: t1 = " + sub1 + ", t2 = " + sub2)
-            if (u.hasError) isMatching = false
+            println("check if terms are equal: " + u.isEqual(sub1, sub2))
+            if (!u.isEqual(sub1, sub2)) isMatching = false
           }
           isMatching
         } else false
@@ -318,6 +343,7 @@ object Checker {
     val binds = sym.get._2
     var nb : List[(Term,Term)] = List()
 
+    // not sure if this is correct or not
     if (gens.length > 0) {
       val t1 : Term = Fun(methodName, gens)
       val t2 : Term = d.retType.cs.t

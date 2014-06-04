@@ -53,6 +53,23 @@ case class Unifier(mustUnify : Boolean) {
     else unifyTerms(terms1.tail, terms2.tail, unifyTerm(terms1.head, terms2.head, subs))
   }
 
+  def isEqualTerms(term1 : List[Term], term2 : List[Term]) : Boolean = {
+    for ((x,y) <- ((term1,term2).zipped.toList))
+      if (!isEqual(x,y)) return false
+    true
+  }
+
+  def isEqual(term1 : Term, term2 : Term) : Boolean = {
+    ((term1, term2)) match {
+      case (MVar(t1), MVar(t2)) => true //if (t1 == t2) => t1 == t2
+      case (Namespace(n1,t1), Namespace(n2,t2)) if (n1 == n2) => isEqual(t1,t2)
+      case (MaybeNamespace(n2,t1), MaybeNamespace(n1,t2)) => isEqual(t1,t2)
+      case (Fun(n1,t1), Fun(n2,t2)) if (n1 == n2) => isEqualTerms(t1,t2)
+      case (Bound(n1), Bound(n2)) if (n1 == n2) => true
+      case _ => false
+    }
+  }
+
   def unifyTerm(term1 : Term, term2 : Term, subs : List[(Term, Term)]) : List[(Term, Term)] = {
     ((term1, term2)) match {
       case (MVar(t1), MVar(t2)) if (t1 == t2) => subs
