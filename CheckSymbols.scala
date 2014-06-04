@@ -64,10 +64,7 @@ object Checker {
   def checkStmtType(tree : Stmt) {
     tree match {
       case t@AssignStmt(lval, _, rval) => {
-        val rsym = rval.sym
-        val lsym = lval.sym
-
-        println(t.pos + ": check assign of: rsym = " + rsym + ", lsym = " + lsym)
+        println(t.pos + ": check assign of: rsym = " + rval.sym + ", lsym = " + lval.sym)
 
         if (!classesEqual(rval.sym, lval.sym) && rval != Null())
           SemanticError("tried to assign to different class type: " + t.sym, rval.pos)
