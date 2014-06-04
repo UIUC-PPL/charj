@@ -158,7 +158,7 @@ object Parse extends StandardTokenParsers with App {
     | "-=" ^^^ MEqual()
   )
   def assignStmt = positioned(
-    qualifiedIdent ~ assignOp ~ expression ^^ { case id ~ op ~ expr => AssignStmt(id, op, expr) }
+    qualifiedIdent ~ assignOp ~ expression ^^ { case id ~ op ~ expr => AssignStmt(StrExpr(id), op, expr) }
   )
 
   def elseStmt = "else" ~> semiStmt

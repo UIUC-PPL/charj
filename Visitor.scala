@@ -84,7 +84,7 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
     tree match {
       case DeclStmt(_, _, _, Some(expr)) => visit(expr, tree)
       case ExprStmt(expr) => visit(expr, tree)
-      case AssignStmt(_, _, expr) => visit(expr, tree)
+      case AssignStmt(expr1, _, expr2) => {visit(expr1, tree); visit(expr2, tree)}
       case IfStmt(expr, _, _) => visit(expr, tree)
       case ForStmt(_, expr, _, _) => visit(expr, tree)
       case WhileStmt(expr, _) => visit(expr, tree)

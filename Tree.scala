@@ -45,7 +45,7 @@ case class StmtList(lst : List[Stmt]) extends Stmt {
   override def getName() = pos + "-> block"
 }
 case class ExprStmt(expr : Expression) extends Stmt
-case class AssignStmt(lval : List[String], op : AssignOp, rval : Expression) extends Stmt with HasBoundClass
+case class AssignStmt(lval : Expression, op : AssignOp, rval : Expression) extends Stmt with HasBoundClass
 case class IfStmt(cond : Expression, expr1 : Stmt, expr2 : Option[Stmt]) extends Stmt
 case class ForStmt(decls : List[Stmt], expr1 : Expression, cont : List[Stmt], stmt : Stmt) extends Stmt {
   override def getName() = pos + "-> for"
