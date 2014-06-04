@@ -14,7 +14,6 @@ class Checker(tree : Stmt) {
                                                       ", abstract = " + cls.asInstanceOf[ClassStmt].isAbstract)
     new StmtVisitor(tree, filterClass, printClass);
 
-    // @todo need to visit FunExpr which have types
     if (verbose) println("###\n### traverse resolve free vars ###\n###")
     def filterType(cls : Stmt) = cls.isInstanceOf[Type]
     new StmtVisitor(tree, filterType, findFreeVars);
@@ -52,12 +51,7 @@ object Checker {
 
         println(t.pos + ": check assign of: rsym = " + rsym + ", lsym = " + lsym)
 
-        val (ntr,_) = findNew(rval.sym, rval.sym.bindings)
-        val (ntl,_) = findNew(lval.sym, lval.sym.bindings)
-
-        val eq = Unifier(true).isEqual(ntr, ntl)
-
-        if (!eq && rval != Null())
+        if (!classesEqual(rval.sym, lval.sym) && rval != Null())
           SemanticError("tried to assign to different class type: " + t.sym, rval.pos)
       }
       case t@IfStmt(cond, _, _) => {
@@ -74,16 +68,18 @@ object Checker {
       //   if (!classesEqual(expr1.sym, resolveClassType(Type(booleanType),tree)))
       //     SemanticError("while statement condition must be of type boolean", t.pos)
       // }
-      // case t@DeclStmt(_, _, optType, Some(expr1)) => {
-      //   if (expr1.sym == null)
-      //     SemanticError("decl statement condition type not determined", t.pos)
-      //   if (optType.isEmpty)
-      //     SemanticError("type required on decl", t.pos)
-      //   if (!classesEqual(expr1.sym, resolveClassType(optType.get, tree))) {
-      //     val typ = resolveClassType(optType.get, tree)
-      //     SemanticError("decl type and expression must match: " + expr1.sym + " and " + typ, t.pos)
-      //   }
-      // }
+      case t@DeclStmt(_, _, optType, Some(expr1)) => {
+        println(t.pos + ": check decl stmt: expr1 sym = " + expr1.sym)
+
+        if (expr1.sym == null)
+          SemanticError("decl statement condition type not determined", t.pos)
+        if (optType.isEmpty)
+          SemanticError("type required on decl", t.pos)
+        if (!classesEqual(expr1.sym, resolveClassType(optType.get, tree)) && expr1 != Null()) {
+          val typ = resolveClassType(optType.get, tree)
+          SemanticError("decl type and expression must match: " + expr1.sym + " and " + typ, t.pos)
+        }
+      }
       // case t@ReturnStmt(optExp) => {
       //   if (optExp.isEmpty) {
       //     if (!classesEqual(t.enclosingDef.sym.retType, resolveClassType(Type(unitType),tree)))
@@ -361,7 +357,7 @@ object Checker {
     }
 
     if (verbose) println("resolved def rettype to: " + d.retType + ", new term = " + nt)
-    val nbcs = BoundClassSymbol(d.retType.cs, nb)
+    val nbcs = BoundClassSymbol(d.retType.cs, d.retType.bindings ++ nb ++ binds)
 
     (nbcs, nt, ncon)
   }
@@ -434,8 +430,6 @@ object Checker {
     val l1 = Unifier(true).subst(l.cs.t, l.bindings)
     val r1 = Unifier(true).subst(r.cs.t, r.bindings)
     if (verbose) println("checkBinarySet: l1 = " + l1 + ", r1 = " + r1)
-    val uni = Unifier(false)
-    uni.unifyTerm(l1, r1, List())
-    !uni.hasError
+    Unifier(false).isEqual(l1, r1)
   }
 }
