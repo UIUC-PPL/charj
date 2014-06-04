@@ -279,12 +279,14 @@ object Checker {
   }
 
   def findIdentType(cls : Stmt, t : Term, context : Context, n : List[String], sym : BoundClassSymbol) : (BoundClassSymbol, Term, Context) = {
-    if (n.size != 0 && verbose) println("recursive findIdentType: " + n + ", context = " + context)
+    if (n.size != 0 && verbose) println("recursive findIdentType: " + n + ", context = " + context +
+                                        " bindings = " + (if (sym != null) sym.bindings else List()))
 
     if (n.size != 0) {
-      val (sym,term,con) = findDeclType(context, cls, n.head)
-      if (verbose) println("\tresolved type for " + n.head + " = " + term)
-      findIdentType(cls, term, con, n.tail, sym)
+      val lst = if (sym != null) sym.bindings else List()
+      val (sym2,term,con) = findDeclType(context, cls, n.head, lst)
+      if (verbose) println("\tresolved type for " + n.head + " = " + term + " bcs = " + sym2)
+      findIdentType(cls, term, con, n.tail, sym2)
     } else (sym, t, context)
   }
 
@@ -341,7 +343,7 @@ object Checker {
     else (nt, resolveClassType(Type(nt)).cs.context)
   }
 
-  def findDeclType(context : Context, cls : Stmt, ident : String) : (BoundClassSymbol, Term, Context) = {
+  def findDeclType(context : Context, cls : Stmt, ident : String, bindings : List[(Term,Term)] = List()) : (BoundClassSymbol, Term, Context) = {
     if (context == null) SemanticError("trying to search null context for: " + ident, cls.pos)
 
     println("findDeclType: searching context: " + context)
@@ -358,7 +360,7 @@ object Checker {
     if (sym.isEmpty) SemanticError("symbol " + ident + " unknown", cls.pos)
 
     val d = sym.get._1.asInstanceOf[DeclSymbol]
-    val (nt, ncon) = findNew(d.declType, sym.get._2)
+    val (nt, ncon) = findNew(d.declType, sym.get._2 ++ bindings)
     (d.declType, nt, ncon)
   }
 
