@@ -8,6 +8,6 @@ case class SemanticError(str : String, pos : Position) {
 }
 
 case class SemanticErrorNone(str : String) {
-  println("[????] Semantic error: " + str)
+  println("[??] Semantic error: " + str)
   System.exit(1)
 }

@@ -17,16 +17,6 @@ case class MVar(t : String) extends Term {
   override def getName = t
   override def getTerms = List()
 }
-case class Namespace(n : String, t : Term) extends Term {
-  override def toString = "N_" + n + "(" + t + ")"
-  override def getName = n
-  override def getTerms = List(t)
-}
-case class MaybeNamespace(n : String, t : Term) extends Term {
-  override def toString = "MN_" + n + "(" + t + ")"
-  override def getName = n
-  override def getTerms = List(t)
-}
 case class Fun(n : String, terms : List[Term]) extends Term {
   override def toString = n + "[" + terms.foldRight("")((x,y) => x + "," + y) + "]"
   override def getName = n
@@ -36,6 +26,18 @@ case class Tok(t : String) extends Term {
   override def toString = "UuU(" + t + ")"
   override def getName = t
   override def getTerms = List()
+}
+
+// @todo for future namespace support and resolution
+case class Namespace(n : String, t : Term) extends Term {
+  override def toString = "N_" + n + "(" + t + ")"
+  override def getName = n
+  override def getTerms = List(t)
+}
+case class MaybeNamespace(n : String, t : Term) extends Term {
+  override def toString = "MN_" + n + "(" + t + ")"
+  override def getName = n
+  override def getTerms = List(t)
 }
 
 case class Unifier(mustUnify : Boolean) {
