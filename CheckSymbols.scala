@@ -22,6 +22,11 @@ class Checker(tree : Stmt) {
     if (verbose) println("###\n### traverse resolve class type ###\n###")
     new StmtVisitor(tree, filterClass, determineClassType);
 
+    if (verbose) println("###\n### traverse print class level ###\n###")
+    def printClassLevel(cls : Stmt) = println(cls.pos + ": class name = " + cls.asInstanceOf[ClassStmt].name +
+                                              ", level = " + cls.asInstanceOf[ClassStmt].sym.level)
+    new StmtVisitor(tree, filterClass, printClassLevel);
+
     if (verbose) println("###\n### traverse resolve decl type ###\n###")
     def filterDecls(cls : Stmt) = cls.isInstanceOf[DeclStmt] || cls.isInstanceOf[TypeParam]
     new StmtVisitor(tree, filterDecls, determineDeclType)
@@ -100,9 +105,11 @@ object Checker {
   def findFreeVarsExpr(expr : Expression, cls : Stmt) {
     expr match {
       case t@FunExpr(_,_,_) => {
-        if (verbose) println("resolving generics for " + t.generic)
-        t.generic = t.generic.map{checkTerm(_, cls)}
-        if (verbose) println("resolved to " + t.generic)
+        if (t.generic != List()) {
+          if (verbose) println("resolving generics for " + t.generic)
+          t.generic = t.generic.map{checkTerm(_, cls)}
+          if (verbose) println("resolved to " + t.generic)
+        }
       }
       case _ => ;
     }
@@ -168,13 +175,33 @@ object Checker {
     }
   }
 
+  def setChildrenLevelRecur(sym : ClassSymbol) {
+    for (child <- sym.children) {
+      child.level = sym.level + 1
+      setChildrenLevelRecur(child)
+    }
+  }
+
   def determineClassType(tree : Stmt) {
     tree.asInstanceOf[ClassStmt] match {
       case t@ClassStmt(name, _, _, Some(parent), _) => {
-        if (verbose) println("determine parent: " + parent + " :type of " + t.sym)
+        if (verbose) println(t.pos + ": name: " + name + ", parent: " + parent + " type is " + t.sym)
         val cls = resolveClassType(parent, tree)
         if (cls != null) t.context.extensions += cls
         if (verbose) println("\t subclass of " + cls)
+
+        // Code to compute the levels in the inheritance tree. This
+        // code traverses up and down the tree and classes are
+        // introduced, building the parent-child relationship both
+        // ways
+        cls.cs.children += t.sym
+        if (cls.cs.level != -1) t.sym.level = cls.cs.level + 1
+      }
+      case t@ClassStmt(name, _, _, None, _) => {
+        // Code to propagate levels up the inheritance tree, once the
+        // bottom is reached
+        t.sym.level = 1
+        setChildrenLevelRecur(t.sym);
       }
       case _ => ;
     }

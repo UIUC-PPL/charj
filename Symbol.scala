@@ -14,9 +14,10 @@ case class BoundClassSymbol(cs : ClassSymbol, var bindings : List[(Term,Term)]) 
 case class ClassSymbol(name : String, arity : Int) extends Symbol {
   import scala.collection.mutable.ListBuffer
   var t : Term = null
-  //var names : List[Term] = List()
   var isAbstract : Boolean = false
   var context : Context = new Context(None, false)
+  var level : Int = -1
+  var children : ListBuffer[ClassSymbol] = ListBuffer()
   override def toString = t.toString
 }
 
