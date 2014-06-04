@@ -62,12 +62,12 @@ object Checker {
         if (!classesEqual(cond.sym, resolveClassType(Type(booleanType),tree)))
           SemanticError("if statement condition must be of type boolean", t.pos)
       }
-      // case t@WhileStmt(expr1, _) => {
-      //   if (expr1.sym == null)
-      //     SemanticError("while statement condition type not determined", t.pos)
-      //   if (!classesEqual(expr1.sym, resolveClassType(Type(booleanType),tree)))
-      //     SemanticError("while statement condition must be of type boolean", t.pos)
-      // }
+      case t@WhileStmt(expr1, _) => {
+        if (expr1.sym == null)
+          SemanticError("while statement condition type not determined", t.pos)
+        if (!classesEqual(expr1.sym, resolveClassType(Type(booleanType),tree)))
+          SemanticError("while statement condition must be of type boolean", t.pos)
+      }
       case t@DeclStmt(_, _, optType, Some(expr1)) => {
         println(t.pos + ": check decl stmt: expr1 sym = " + expr1.sym)
 
@@ -80,17 +80,19 @@ object Checker {
           SemanticError("decl type and expression must match: " + expr1.sym + " and " + typ, t.pos)
         }
       }
-      // case t@ReturnStmt(optExp) => {
-      //   if (optExp.isEmpty) {
-      //     if (!classesEqual(t.enclosingDef.sym.retType, resolveClassType(Type(unitType),tree)))
-      //       SemanticError("return type of def must be unit (or not present)", t.pos)
-      //   } else if (optExp.get.sym != null) {
-      //     if (!classesEqual(t.enclosingDef.sym.retType, optExp.get.sym))
-      //       SemanticError("return type of def must match declared: " + optExp.get.sym, t.pos)
-      //   } else {
-      //     SemanticError("unable to resolve type of return", t.pos)
-      //   }
-      // }
+      case t@ReturnStmt(optExp) => {
+        println(t.pos + ": check return stmt")
+
+        if (optExp.isEmpty) {
+          if (!classesEqual(t.enclosingDef.sym.retType, resolveClassType(Type(unitType),tree)))
+            SemanticError("return type of def must be unit (or not present)", t.pos)
+        } else if (optExp.get.sym != null) {
+          if (!classesEqual(t.enclosingDef.sym.retType, optExp.get.sym))
+            SemanticError("return type of def must match declared: " + optExp.get.sym, t.pos)
+        } else {
+          SemanticError("unable to resolve type of return", t.pos)
+        }
+      }
       case _ => ;
     }
   }
@@ -366,7 +368,10 @@ object Checker {
     if (verbose) println("sym = " + sym + ", binds = " + bindings)
     val nt = Unifier(true).subst(sym.cs.t, sym.bindings ++ bindings)
     if (nt == sym.cs.t) (nt, sym.cs.context)
-    else (nt, resolveClassType(Type(nt)).cs.context)
+    else {
+      val ret = maybeResolveClass(Type(nt), null)
+      (nt, if (ret.isEmpty) BaseContext.context else ret.get.cs.context)
+    }
   }
 
   def findDeclType(context : Context, cls : Stmt, ident : String, bindings : List[(Term,Term)] = List()) : (BoundClassSymbol, Term, Context) = {
