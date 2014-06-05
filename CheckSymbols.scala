@@ -335,6 +335,9 @@ object Checker {
       case LeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
       case GesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
       case GeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
+      case AopExpr(l, r, op) => {
+        SemanticError(op + ": arbitrary operators currently unsupported", l.pos)
+      }
       case NotExpr(l) => {
         if (!ClassEquality.equal(l.sym, resolveClassType(Type(booleanType), cls)))
           SemanticError("boolean negation incorrect type: " + l.sym, l.pos)

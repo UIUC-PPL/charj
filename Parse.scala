@@ -15,7 +15,7 @@ object Parse extends StandardTokenParsers with App {
                        "if", "else", "true", "false", "new",
                        "for", "while", "return", "null")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
-                         "{", "}", "[", "]", "(", ")",
+                         "{", "}", "[", "]", "(", ")", "$", "@", "%",
                          ":", ".", ",", ";", "&&", "||", "!",
                          "<", "<=", ">", ">=", "+=", "-=", "#")
 
@@ -197,7 +197,7 @@ object Parse extends StandardTokenParsers with App {
 
   def parameters = mkList(expression, ",")
 
-  def fact : Parser[Expression] = positioned(
+  def mainExpr : Parser[Expression] = positioned(
       funcCall
     | newExpr
     | "true"                     ^^ { case _      => True() }
@@ -211,8 +211,20 @@ object Parse extends StandardTokenParsers with App {
     | "!" ~> expression          ^^ { case expr   => NotExpr(expr) }
   )
 
+  def possOps = "!" | "$" | "#" | "@" | "%"
+  def opList : Parser[String] = possOps | possOps ~ opList ^^ { case p ~ l => p + l }
+
+  def opExpr : Parser[Expression] = positioned(
+    mainExpr ~ rep(opList ~ mainExpr)
+    ^^ {
+      case el ~ rest => (el /: rest) {
+        case (x, op ~ y) => AopExpr(x, y, op)
+      }
+    }
+  )
+
   def dot : Parser[Expression] = positioned(
-    fact ~ rep("." ~ fact)
+    opExpr ~ rep("." ~ opExpr)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, "." ~ y) => DotExpr(x, y)
