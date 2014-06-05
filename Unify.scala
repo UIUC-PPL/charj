@@ -61,11 +61,16 @@ case class Unifier(mustUnify : Boolean) {
     true
   }
 
-  def isEqual(term1 : Term, term2 : Term) : Boolean = {
+  abstract class Exactness
+  case class Exact() extends Exactness
+  case class LHSVary() extends Exactness
+  case class RHSVary() extends Exactness
+
+  def isEqual(term1 : Term, term2 : Term, d : Exactness = Exact()) : Boolean = {
     ((term1, term2)) match {
       case (MVar(t1), MVar(t2)) => true //if (t1 == t2) => t1 == t2
-      case (MVar(_), Bound(_)) => true
-      case (Bound(_), MVar(_)) => true
+      case (MVar(_), Bound(_)) if (d == LHSVary()) => true
+      case (Bound(_), MVar(_)) if (d == RHSVary()) => true
       case (Namespace(n1,t1), Namespace(n2,t2)) if (n1 == n2) => isEqual(t1,t2)
       case (MaybeNamespace(n2,t1), MaybeNamespace(n1,t2)) => isEqual(t1,t2)
       case (Fun(n1,t1), Fun(n2,t2)) if (n1 == n2) => isEqualTerms(t1,t2)

@@ -371,7 +371,7 @@ object Checker {
       case t@DefSymbol(name, _) => {
         if (name == methodName && t.inTypes.size == lst.size) {
           var constructor_bindings : List[(Term, Term)] = List()
-          if (t.isCons && gens != List()) {
+          if (t.isCons && t.classCons.generic != List()) {
             if (verbose) println("\tis constructor def")
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
             constructor_bindings = Unifier(true).unifyTerm(Fun(name, gens), t.classCons.getType().full, List())
