@@ -84,7 +84,7 @@ object Checker {
       case t@AssignStmt(lval, _, rval) => {
         println(t.pos + ": check assign of: rsym = " + rval.sym + ", lsym = " + lval.sym)
 
-        if (!ClassEquality.equal(rval.sym, lval.sym) && rval != Null())
+        if (!ClassEquality.equal(rval.sym, lval.sym) && !rval.sym.isNull)
           SemanticError("tried to assign to different class type: " + t.sym, rval.pos)
       }
       case t@IfStmt(cond, _, _) => {
@@ -108,7 +108,7 @@ object Checker {
           SemanticError("decl statement condition type not determined", t.pos)
         if (optType.isEmpty)
           SemanticError("type required on decl", t.pos)
-        if (!ClassEquality.equal(expr1.sym, resolveClassType(optType.get, tree)) && expr1 != Null()) {
+        if (!ClassEquality.equal(expr1.sym, resolveClassType(optType.get, tree)) && !expr1.sym.isNull) {
           val typ = resolveClassType(optType.get, tree)
           SemanticError("decl type and expression must match: " + expr1.sym + " and " + typ, t.pos)
         }
@@ -342,7 +342,10 @@ object Checker {
           SemanticError("int negation incorrect type: " + l.sym, l.pos)
         else expr.sym = l.sym
       }
-      case Null() => expr.sym = resolveClassType(Type(refType), cls)
+      case Null() => {
+        expr.sym = resolveClassType(Type(refType), cls)
+        expr.sym.isNull = true
+      }
       case _ => ;
     }
   }
@@ -356,7 +359,12 @@ object Checker {
   }
 
   def checkBinarySet(l : Expression, r : Expression, cur : Expression, ret : BoundClassSymbol) {
-    if (!ClassEquality.equal(l.sym, r.sym))
+    if (l.sym.isNull || r.sym.isNull) {
+      if (verbose) println("found left or right is Null()")
+      if (!(r.sym.isNull && l.sym.cs.t.isInstanceOf[Fun]||
+            l.sym.isNull && r.sym.cs.t.isInstanceOf[Fun]))
+        SemanticError("a literal may not be compared to null", r.pos)
+    } else if (!ClassEquality.equal(l.sym, r.sym))
       SemanticError("binary op " + cur + " with different types: " + l.sym + " at " + l.pos +  ", " + r.sym, r.pos)
     cur.sym = ret
   }
@@ -397,7 +405,8 @@ object Checker {
             val sub2 = u.subst(t2.cs.t, t2.bindings)
             if (verbose) println("after: t1 = " + sub1 + ", t2 = " + sub2)
             if (verbose) println("check if terms are equal: " + u.isEqual(sub1, sub2))
-            if (!u.isEqual(sub1, sub2)) isMatching = false
+            if (t2.isNull && sub1.isInstanceOf[Fun]) isMatching = true
+            else if (!u.isEqual(sub1, sub2)) isMatching = false
           }
           isMatching
         } else false
