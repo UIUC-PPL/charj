@@ -5,7 +5,6 @@ import scala.collection.mutable.ArrayBuffer
 
 /*
  * Todos:
- * fix parsing problem with multiple functions
  * syntax for marking entry methods
  * arbitrary operators
  * contig blocks of data for arrays
@@ -17,6 +16,7 @@ import scala.collection.mutable.ArrayBuffer
  *
  * 
  * Completed todos:
+ * fix parsing problem with multiple functions
  * 'this' for class self reference
  * LCA algorithm for classesEqual inheritance hierarchy traversal
  */
