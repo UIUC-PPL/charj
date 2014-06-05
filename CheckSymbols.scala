@@ -281,6 +281,9 @@ object Checker {
         expr.sym = if (bcs.isEmpty) sym2 else bcs.get
         expr.context = ncon
       }
+      case StrLiteral(str) => {
+        expr.sym = resolveClassType(Type(stringType), cls)
+      }
       case NumLiteral(str) => {
         val theInt = tryConvertToInt(str)
         if (!theInt.isEmpty)

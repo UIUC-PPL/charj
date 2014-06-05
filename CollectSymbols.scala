@@ -5,6 +5,8 @@ import scala.util.parsing.input.{Positional,Position}
 object BasicTypes {
   val booleanType = Bound("boolean")
   val intType = Bound("int")
+  val stringType = Bound("string")
+  val charType = Bound("char")
   val unitType = Bound("unit")
   val refType = Fun("Ref", List(MVar("T")))
 }
