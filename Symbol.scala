@@ -7,7 +7,7 @@ abstract class Symbol extends Positional {
 }
 
 import scala.collection.mutable.ArrayBuffer
-case class BoundClassSymbol(cs : ClassSymbol, var bindings : List[(Term,Term)]) extends Symbol {
+case class BoundClassSymbol(cs : ClassSymbol, val bindings : List[(Term,Term)]) extends Symbol {
   override def toString = { cs.toString + ", bds = " + bindings }
 }
 

@@ -64,6 +64,8 @@ case class Unifier(mustUnify : Boolean) {
   def isEqual(term1 : Term, term2 : Term) : Boolean = {
     ((term1, term2)) match {
       case (MVar(t1), MVar(t2)) => true //if (t1 == t2) => t1 == t2
+      case (MVar(_), Bound(_)) => true
+      case (Bound(_), MVar(_)) => true
       case (Namespace(n1,t1), Namespace(n2,t2)) if (n1 == n2) => isEqual(t1,t2)
       case (MaybeNamespace(n2,t1), MaybeNamespace(n1,t2)) => isEqual(t1,t2)
       case (Fun(n1,t1), Fun(n2,t2)) if (n1 == n2) => isEqualTerms(t1,t2)

@@ -115,6 +115,8 @@ object Checker {
       case t@ReturnStmt(optExp) => {
         println(t.pos + ": check return stmt")
 
+        if (verbose) println("retType = " + t.enclosingDef.sym.retType)
+
         if (optExp.isEmpty) {
           if (!ClassEquality.equal(t.enclosingDef.sym.retType, resolveClassType(Type(unitType),tree)))
             SemanticError("return type of def must be unit (or not present)", t.pos)
@@ -271,10 +273,9 @@ object Checker {
         var (sym2, term2, con2) = findFunType(cls, name.last, con, types, gens,
                                               if (sym != null) sym.bindings else List())
 
-        if (sym != null && sym2 != null)
-          sym2.bindings = sym2.bindings ++ sym.bindings
+        val bcs = BoundClassSymbol(sym2.cs, if (sym != null && sym2 != null) sym2.bindings ++ sym.bindings else sym2.bindings)
 
-        expr.sym = sym2
+        expr.sym = bcs
         expr.context = con2
       }
       case NumLiteral(str) => {
@@ -296,7 +297,12 @@ object Checker {
           if (verbose) println("dotexpr lhs: resolved to type: " + l.sym)
 
           val (nt, ncon) = findNew(l.sym, l.sym.bindings)
-          val (sym, term, con) = findIdentType(cls, nt, ncon, List(r.text), null)
+          println("new term from lhs = " + nt)
+
+          //val binds = Unifier(true).unifyTerm(nt, resolveClassType(Type(nt), null).cs.t, List())
+          val bcs = resolveClassType(Type(nt), null)
+          //bcs.bindings = binds
+          val (sym, term, con) = findIdentType(cls, nt, ncon, List(r.text), bcs)
 
           r.sym = sym
           r.context = con
@@ -358,8 +364,7 @@ object Checker {
 
   def findFunType(cls : Stmt, methodName : String, context : Context, lst : List[BoundClassSymbol],
                   gens : List[Term], bindings : List[(Term,Term)]) : (BoundClassSymbol, Term, Context) = {
-    if (verbose) println("trying to resolve function " + methodName)
-    
+    if (verbose) println("trying to resolve function " + methodName + " bindings = " + bindings)
 
     val sym = context.resolve{a : (Symbol,Context) => a._1 match {
       case t@DefSymbol(name, _) => {
@@ -412,9 +417,12 @@ object Checker {
     }
 
     if (verbose) println("resolved def rettype to: " + d.retType + ", new term = " + nt)
-    val nbcs = BoundClassSymbol(d.retType.cs, d.retType.bindings ++ nb ++ binds)
 
-    (nbcs, nt, ncon)
+    val bcs = maybeResolveClass(Type(nt), null)
+    if (bcs.isEmpty)
+      (d.retType, nt, ncon)
+    else
+      (bcs.get, nt, ncon)
   }
 
   def findNew(sym : BoundClassSymbol, bindings : List[(Term,Term)] = List()) : (Term, Context) = {
@@ -445,7 +453,16 @@ object Checker {
 
     val d = sym.get._1.asInstanceOf[DeclSymbol]
     val (nt, ncon) = findNew(d.declType, sym.get._2 ++ bindings)
-    (d.declType, nt, ncon)
+
+    println("findDeclType: d.declType.bindings = " + d.declType.bindings + ", sym.get._2 = " + sym.get._2 + ", bindings = " + bindings)
+    println("findDeclType: nt = " + nt)
+
+    val bcs = maybeResolveClass(Type(nt), null)
+
+    if (bcs.isEmpty)
+      (d.declType, nt, ncon)
+    else
+      (bcs.get, nt, ncon)
   }
 
   def maybeResolveClass(t : Type, tree : Stmt) : Option[BoundClassSymbol] = {
