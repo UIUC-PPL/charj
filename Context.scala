@@ -15,14 +15,30 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
   var extensions : ArrayBuffer[BoundClassSymbol] = ArrayBuffer()
   val ordered = isOrdered
 
+  def condSyms(sym1 : Symbol, sym2 : Symbol) : Boolean = {
+    (sym1,sym2) match {
+      case (t1@DefSymbol(n1,_),t2@DefSymbol(n2,_)) if (n1 == n2 && t1.arity != t2.arity) => false
+      case (t1@DeclSymbol(n1,_),t2@DefSymbol(n2,_)) if (n1 == n2) => true
+      case (t2@DefSymbol(n2,_),t1@DeclSymbol(n1,_)) if (n1 == n2) => true
+      case (t1@DeclSymbol(n1,_),t2@DeclSymbol(n2,_)) if (n1 == n2) => true
+      case (t1@DeclSymbol(n1,_),t2@ClassSymbol(n2,_)) if (n1 == n2) => true
+      case (t1@ClassSymbol(n1,_),t2@DeclSymbol(n2,_)) if (n1 == n2) => true
+      case (t1@ClassSymbol(n1,_),t2@ClassSymbol(n2,_)) if (n1 == n2) => true
+      case (t1@ClassSymbol(n1,_),t2@DefSymbol(n2,_)) if (n1 == n2) => false
+      case (t1@DefSymbol(n1,_),t2@ClassSymbol(n2,_)) if (n1 == n2) => false
+      case (_,_) if (sym1.name == sym2.name) => true
+      case (_,_) => false
+    }
+  }
+
   def checkAdd(sym : Symbol, stmt : Stmt, context : Context, pos : Position) {
-    if (lst contains sym) {
-      // @todo this check needs to be more specific
-      val other = lst.find(_._1 == sym).get
-      SemanticError("conflict for " + sym + " at position " + pos + " and " + other._1.pos, other._1.pos)
-    } else {
-      sym.setPos(pos)
-      lst += Tuple3(sym, stmt, context)
+    lst.find(a => condSyms(a._1,sym)) match {
+      case Some(x) =>
+        SemanticError("conflict for " + sym + " and " + x + ": position " + pos + " and " + x._1.pos, x._1.pos)
+      case None => {
+        sym.setPos(pos)
+        lst += Tuple3(sym, stmt, context)
+      }
     }
   }
 

@@ -74,13 +74,14 @@ class Collector(tree : Stmt) {
         val con = newContext(context, tree, true)
         val isAbstract = lst == EmptyStmt()
         val isConstructor = t.enclosingClass != null && t.enclosingClass.name == name
+        val arity = if (nthunks.isEmpty) 0 else nthunks.get.length
         if (t.enclosingClass != null &&
             t.enclosingClass.name == name) {
-          t.sym = addDef(BaseContext.context, tree, con, name, tree.pos, isAbstract)
+          t.sym = addDef(BaseContext.context, tree, con, name, tree.pos, isAbstract, arity)
           t.sym.isCons = true
           t.sym.classCons = enclosingClass
         } else {
-          t.sym = addDef(context, tree, con, name, tree.pos, isAbstract)
+          t.sym = addDef(context, tree, con, name, tree.pos, isAbstract, arity)
         }
         con.sym = enclosingClass.sym
         if (t.enclosingClass != null) {
@@ -160,8 +161,9 @@ class Collector(tree : Stmt) {
   }
 
   def addDef(context : Context, stmt : Stmt, newContext : Context,
-             name : String, pos : Position, isAbstract : Boolean) = {
+             name : String, pos : Position, isAbstract : Boolean, arity : Int) = {
     val sym = DefSymbol(name, isAbstract)
+    sym.arity = arity
     context.checkAdd(sym, stmt, newContext, pos)
     sym
   }
