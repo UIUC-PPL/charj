@@ -5,8 +5,8 @@ import scala.collection.mutable.ArrayBuffer
 
 /*
  * Todos:
+ * fix parsing problem with multiple functions
  * syntax for marking entry methods
- * LCA algorithm for classesEqual inheritance hierarchy traversal
  * arbitrary operators
  * contig blocks of data for arrays
  * how to communicate with other languages (extern/etc.)
@@ -18,6 +18,7 @@ import scala.collection.mutable.ArrayBuffer
  * 
  * Completed todos:
  * 'this' for class self reference
+ * LCA algorithm for classesEqual inheritance hierarchy traversal
  */
 
 class Checker(tree : Stmt) {
