@@ -185,8 +185,8 @@ object Parse extends StandardTokenParsers with App {
   def expression : Parser[Expression] = bOr
 
   def funcCall = positioned(
-    qualifiedIdent ~ generic.? ~ "(" ~ parameters.? ~ ")"
-    ^^ { case ident ~ gen ~ _ ~ params ~ _ => FunExpr(ident, if (gen.isEmpty) List() else gen.get, params) }
+    ident ~ generic.? ~ "(" ~ parameters.? ~ ")"
+    ^^ { case ident ~ gen ~ _ ~ params ~ _ => FunExpr(List(ident), if (gen.isEmpty) List() else gen.get, params) }
   )
 
   def newExpr = positioned(
@@ -203,7 +203,7 @@ object Parse extends StandardTokenParsers with App {
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }
     | "null"                     ^^ { case _      => Null() }
-    |  qualifiedIdent            ^^ { case qident => StrExpr(qident) }
+    |  ident                     ^^ { case ident  => StrExpr(List(ident)) }
     | "-" ~> expression          ^^ { case expr   => NegExpr(expr) }
     | numericLit                 ^^ { case lit    => NumLiteral(lit) }
     | stringLit                  ^^ { case lit    => StrLiteral(lit) }
@@ -212,10 +212,10 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def dot : Parser[Expression] = positioned(
-    fact ~ rep("." ~ ident)
+    fact ~ rep("." ~ fact)
     ^^ {
       case el ~ rest => (el /: rest) {
-        case (x, "." ~ y) => DotExpr(x, StrLiteral(y))
+        case (x, "." ~ y) => DotExpr(x, y)
       }
     }
   )

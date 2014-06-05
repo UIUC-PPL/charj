@@ -267,17 +267,19 @@ object Checker {
         if (verbose) println("determing type for FunExpr: " + name)
         val exprs = if (param.isEmpty) List() else param.get
         val types : List[BoundClassSymbol] = exprs.map(_.sym)
-        val (sym, term, con) = findIdentType(cls, null, cls.context, name.dropRight(1), null)
+        //val (sym, term, con) = findIdentType(cls, null, cls.context, name.dropRight(1), null)
+        val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
 
         if (verbose) println(expr.pos + ": function call: " + name + ", sym = " + sym)
 
-        var (sym2, term2, con2) = findFunType(cls, name.last, con, types, gens,
-                                              if (sym != null) sym.bindings else List())
+        val prevBindings = if (sym != null) sym.bindings else List()
+        var (sym2, term2, con2) = findFunType(cls, name.last, con, types, gens, prevBindings)
 
-        val bcs = BoundClassSymbol(sym2.cs, if (sym != null && sym2 != null) sym2.bindings ++ sym.bindings else sym2.bindings)
+        val (nt, ncon) = findNew(sym2, sym2.bindings ++ prevBindings)
 
-        expr.sym = bcs
-        expr.context = con2
+        val bcs = maybeResolveClass(Type(nt), null)
+        expr.sym = if (bcs.isEmpty) sym2 else bcs.get
+        expr.context = ncon
       }
       case NumLiteral(str) => {
         val theInt = tryConvertToInt(str)
@@ -285,10 +287,20 @@ object Checker {
           expr.sym = resolveClassType(Type(intType), cls)
       }
       case StrExpr(lst) => {
-        val (sym, term, con) = findIdentType(cls, null, cls.context, lst, null)
-        println("check type of StrExpr: " + sym)
-        expr.sym = sym
-        expr.context = con
+        println("strexpr determine type of: " + lst)
+
+        val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
+
+        if (verbose) println("strexpr push over: " + expr.sym)
+        val (sym2,_,_) = findIdentType(cls, null, con, lst, sym)
+        val (nt, ncon) = findNew(sym2, sym2.bindings)
+        val bcs = maybeResolveClass(Type(nt), null)
+
+        if (verbose) println("new term from strexpr = " + nt)
+        if (verbose) println("check type of StrExpr: " + bcs)
+
+        expr.sym = if (bcs.isEmpty) sym2 else bcs.get
+        expr.context = ncon
       }
       case True() | False() => expr.sym = resolveClassType(Type(booleanType), cls)
       case DotExpr(l, r) => {
@@ -297,18 +309,16 @@ object Checker {
         } else {
           if (verbose) println("dotexpr lhs: resolved to type: " + l.sym)
 
-          val (nt, ncon) = findNew(l.sym, l.sym.bindings)
-          println("new term from lhs = " + nt)
-
-          //val binds = Unifier(true).unifyTerm(nt, resolveClassType(Type(nt), null).cs.t, List())
-          val bcs = resolveClassType(Type(nt), null)
-          //bcs.bindings = binds
-          val (sym, term, con) = findIdentType(cls, nt, ncon, List(r.text), bcs)
-
-          r.sym = sym
-          r.context = con
+          // this is tricky: the visitor will visit the node twice,
+          // once before traversing the right, and once after
+          // traversing both. the first time we propagate the left to
+          // the right for resolution. the second time we set the
+          // expression to the right. both of these operations are
+          // essentially idempotent
           expr.sym = r.sym
-          expr.context = con
+          expr.context = r.context
+          r.sym = l.sym
+          r.context = l.context
         }
       }
       case AddExpr(l, r) => checkBinarySet(l, r, expr, l.sym)

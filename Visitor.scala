@@ -114,10 +114,11 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
       case GesExpr(l, r) => visitBinary(l, r, s, expr)
       case GeqExpr(l, r) => visitBinary(l, r, s, expr)
       case DotExpr(l, r) => {
-        // lhs traversal order for resolution
+        // lhs traversal order, following by post, for resolution
         visit(l, s)
         visit2(expr, s)
         visit(r, s)
+        visit2(expr, s)
       }
       case t@FunExpr(_, _, params) => {
         if (!params.isEmpty) for (i <- params.get) visit(i, s)
