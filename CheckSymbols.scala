@@ -5,6 +5,7 @@ import scala.collection.mutable.ArrayBuffer
 
 /*
  * Todos:
+ * chare arrays, sections, etc.
  * syntax for marking entry methods
  * arbitrary operators
  * contig blocks of data for arrays
@@ -12,7 +13,6 @@ import scala.collection.mutable.ArrayBuffer
  * for statement static checking
  * first-class functions
  * multiple inheritance (syntax, semantics)
- * chare arrays, sections, etc.
  *
  * 
  * Completed todos:

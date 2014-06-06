@@ -17,7 +17,7 @@ object Parse extends StandardTokenParsers with App {
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")", "$", "@", "%",
                          ":", ".", ",", ";", "&&", "||", "!",
-                         "<", "<=", ">", ">=", "+=", "-=", "#")
+                         "<", "<=", ">", ">=", "+=", "-=", "#", "<>", "[]")
 
   val input = Source.fromFile("../input4.test").getLines.reduceLeft[String](_ + '\n' + _)
   val tokens = new lexical.Scanner(input)
@@ -96,8 +96,10 @@ object Parse extends StandardTokenParsers with App {
 
   def semi = "{" ~ semiStmt.* ~ "}" ^^ { case _ ~ semi ~ _ => StmtList(semi) }
 
+  def funName = ident | "[]" | "<>"
+
   def defStmt = positioned(
-    "entry".? ~ "def" ~ ident ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
+    "entry".? ~ "def" ~ funName ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
     ^^ { case isEntry ~ _ ~ ident ~ gen ~ _ ~ typedParamList ~ _ ~ typeStmt ~ semi =>
       DefStmt(isEntry, ident, if (gen.isEmpty) List() else gen.get, typedParamList, typeStmt, semi)
     }
@@ -189,6 +191,13 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case ident ~ gen ~ _ ~ params ~ _ => FunExpr(List(ident), if (gen.isEmpty) List() else gen.get, params) }
   )
 
+  def opCall1 = positioned(
+    "[" ~ parameters.? ~ "]" ^^ { case _ ~ params ~ _ => FunExpr(List("[]"), List(), params) }
+  )
+  def opCall2 = positioned(
+    "<" ~ parameters.? ~ ">" ^^ { case _ ~ params ~ _ => FunExpr(List("<>"), List(), params) }
+  )
+
   def newExpr = positioned(
     "new" ~ qualifiedIdent ~ generic.? ~ "(" ~ parameters.? ~ ")"
     ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(ident, if (generic.isEmpty) List() else generic.get,
@@ -198,11 +207,15 @@ object Parse extends StandardTokenParsers with App {
   def parameters = mkList(expression, ",")
 
   def mainExpr : Parser[Expression] = positioned(
-      funcCall
+      funcCall ~ opCall1         ^^ { case f ~ op => DotExpr(f,op) }
+    | funcCall ~ opCall2         ^^ { case f ~ op => DotExpr(f,op) }
+    | funcCall
     | newExpr
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }
     | "null"                     ^^ { case _      => Null() }
+    |  ident ~ opCall1           ^^ { case i ~ op => DotExpr(StrExpr(List(i)),op) }
+    |  ident ~ opCall2           ^^ { case i ~ op => DotExpr(StrExpr(List(i)),op) }
     |  ident                     ^^ { case ident  => StrExpr(List(ident)) }
     | "-" ~> expression          ^^ { case expr   => NegExpr(expr) }
     | numericLit                 ^^ { case lit    => NumLiteral(lit) }
