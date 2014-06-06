@@ -7,7 +7,6 @@ import scala.collection.mutable.ArrayBuffer
  * Todos:
  * chare arrays, sections, etc.
  * syntax for marking entry methods
- * arbitrary operators
  * contig blocks of data for arrays
  * how to communicate with other languages (extern/etc.)
  * for statement static checking
@@ -16,6 +15,7 @@ import scala.collection.mutable.ArrayBuffer
  *
  * 
  * Completed todos:
+ * arbitrary operators
  * fix parsing problem with multiple functions
  * 'this' for class self reference
  * LCA algorithm for classesEqual inheritance hierarchy traversal
@@ -169,10 +169,10 @@ object Checker {
 
     println("checkTermString: built name to check = " + clsName + "_" + defName + "_" + s)
 
-    if (tree.enclosingClass != null && tree.enclosingDef != null) {
+    if (tree.enclosingClass != null && tree.enclosingDef != null)
       println("checkTermString: both class and def and non-null")
-      may = maybeResolveClass(Type(Tok(clsName + "_" + defName + "_" + s)), tree)
-    }
+
+    may = maybeResolveClass(Type(Tok(clsName + "_" + defName + "_" + s)), tree)
 
     if (may.isEmpty) {
       if (tree.enclosingClass != null)
@@ -280,7 +280,7 @@ object Checker {
         //val (sym, term, con) = findIdentType(cls, null, cls.context, name.dropRight(1), null)
         val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
 
-        if (verbose) println(expr.pos + ": function call: " + name + ", sym = " + sym)
+        if (verbose) println(expr.pos + ": function call: " + name + ", gens = " + gens + ", sym = " + sym)
 
         val prevBindings = if (sym != null) sym.bindings else List()
         var (sym2, term2, con2) = findFunType(cls, name.last, con, types, gens, prevBindings)
@@ -401,15 +401,38 @@ object Checker {
                   gens : List[Term], bindings : List[(Term,Term)]) : (BoundClassSymbol, Term, Context) = {
     if (verbose) println("trying to resolve function " + methodName + " bindings = " + bindings)
 
+    var function_bindings : List[(Term, Term)] = List()
+
     val sym = context.resolve{a : (Symbol,Context) => a._1 match {
       case t@DefSymbol(name, _) => {
         if (name == methodName && t.inTypes.size == lst.size) {
-          var constructor_bindings : List[(Term, Term)] = List()
+          // reset function bindings for this possibility
+          function_bindings = List()
+
           if (t.isCons && t.classCons.generic != List()) {
             if (verbose) println("\tis constructor def")
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
-            constructor_bindings = Unifier(true).unifyTerm(Fun(name, gens), t.classCons.getType().full, List())
-            if (verbose) println("constructor bindings = " + constructor_bindings)
+            function_bindings = Unifier(true).unifyTerm(Fun(name, gens), t.classCons.getType().full, List())
+            if (verbose) println("constructor bindings = " + function_bindings)
+          }
+
+          // if it's not a constructor and it has function generics to instantiate
+          if (!t.isCons && (gens.length > 0 || t.term.length > 0)) {
+            var compGens = gens
+
+            // instantiate with parameter types
+            if (gens.length == 0) {
+              compGens = lst.map{t1 =>
+                println("creating type from input: " + t1)
+                val sub1 = Unifier(false).subst(t1.cs.t, t1.bindings)
+                sub1
+              }.take(t.term.length)
+            }
+            val t1 : Term = Fun(methodName, compGens)
+            val t2 : Term = Fun(methodName, t.term)
+            println("t1 term = " + t1 + ", t2 term = " + t2)
+            function_bindings = Unifier(true).unifyTerm(t1, t2, List());
+            println("generic function inst bindings = " + function_bindings)
           }
 
           val toComp = (t.inTypes,lst).zipped.toList
@@ -417,7 +440,7 @@ object Checker {
           for ((t1, t2) <- toComp) {
             if (verbose) println("before: t1 = " + t1 + ", t2 = " + t2)
             val u = Unifier(false)
-            val sub1 = u.subst(t1.cs.t, t1.bindings ++ constructor_bindings ++ bindings)
+            val sub1 = u.subst(t1.cs.t, t1.bindings ++ function_bindings ++ bindings)
             val sub2 = u.subst(t2.cs.t, t2.bindings)
             if (verbose) println("after: t1 = " + sub1 + ", t2 = " + sub2)
             if (verbose) println("check if terms are equal: " + u.isEqual(sub1, sub2))
@@ -434,18 +457,8 @@ object Checker {
       SemanticError("def " + methodName + ", in = " + lst + ", unknown, searched context: " + context, cls.pos)
 
     val d = sym.get._1.asInstanceOf[DefSymbol]
-    val binds = sym.get._2
-    var nb : List[(Term,Term)] = List()
 
-    // not sure if this is correct or not
-    if (gens.length > 0) {
-      val t1 : Term = Fun(methodName, gens)
-      val t2 : Term = d.retType.cs.t
-      if (verbose) println("\t has gens: checking between: " + t1 + " vs " + t2)
-      nb = Unifier(true).unifyTerm(t1, t2, d.retType.bindings ++ binds);
-    }
-
-    val (nt, ncon) = findNew(d.retType, nb)
+    val (nt, ncon) = findNew(d.retType, function_bindings)
 
     if (d.isCons) {
       // unify with class decl to ensure return type of constructor has equal arity

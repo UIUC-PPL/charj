@@ -16,7 +16,7 @@ object Parse extends StandardTokenParsers with App {
                        "for", "while", "return", "null")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")", "$", "@", "%",
-                         ":", ".", ",", ";", "&&", "||", "!",
+                         ":", ".", ",", ";", "&&", "||", "!", "^", "?",
                          "<", "<=", ">", ">=", "+=", "-=", "#")
 
   val input = Source.fromFile("../system.cp").getLines.reduceLeft[String](_ + '\n' + _)
@@ -53,7 +53,9 @@ object Parse extends StandardTokenParsers with App {
   def program = positioned(outerStmt.* ^^ { case stmts => StmtList(stmts) })
 
   def outerStmt = positioned(
-    classStmt | chareStmt
+      classStmt
+    | chareStmt
+    | defStmt
   )
 
   def innerStmtList = innerStmt.*
@@ -240,8 +242,14 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def uniOps = "#" | "^" | "?"
+
+  def unaryExprPost : Parser[Expression] = positioned(
+    uniOps.? ~ dot ^^ {case Some(op) ~ x => FunExpr(List(op), List(), Some(List(x)))
+                       case _ ~ x => x}
+  )
+
   def unaryExpr : Parser[Expression] = positioned(
-    dot ~ rep(uniOps)
+    unaryExprPost ~ rep(uniOps)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, op) => DotExpr(x, FunExpr(List(op), List(), None))

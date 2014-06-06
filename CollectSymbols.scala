@@ -72,7 +72,7 @@ class Collector(tree : Stmt) {
         traverseTree(t.lst, con)
         enclosingClass = null
       }
-      case t@DefStmt(_, name, gens, nthunks, ret, lst) => {
+      case t@DefStmt(_, name, _, nthunks, ret, lst) => {
         val con = newContext(context, tree, true)
         val isAbstract = lst == EmptyStmt()
         val isConstructor = t.enclosingClass != null && t.enclosingClass.name == name
@@ -81,7 +81,7 @@ class Collector(tree : Stmt) {
         val ecn = if (t.enclosingClass != null) t.enclosingClass.name else ""
         val edn = name
 
-        t.gens = gens.map{gen => {
+        t.gens = t.gens.map{gen => {
           val newCon = new Context(None, false)
           val newGen = MVar(ecn + "_" + edn + "_" + gen.asInstanceOf[Tok].t)
           val sym = addClass(con, newGen, newCon, newGen.asInstanceOf[MVar].t, 0, gen.pos, List(), false)
@@ -91,13 +91,14 @@ class Collector(tree : Stmt) {
 
         if (t.enclosingClass != null &&
             t.enclosingClass.name == name) {
-          t.sym = addDef(gens, BaseContext.context, tree, con, name, tree.pos, isAbstract, arity)
+          t.sym = addDef(t.gens, BaseContext.context, tree, con, name, tree.pos, isAbstract, arity)
           t.sym.isCons = true
           t.sym.classCons = enclosingClass
         } else {
-          t.sym = addDef(gens, context, tree, con, name, tree.pos, isAbstract, arity)
+          t.sym = addDef(t.gens, context, tree, con, name, tree.pos, isAbstract, arity)
         }
-        con.sym = enclosingClass.sym
+        if (t.enclosingClass != null)
+          con.sym = enclosingClass.sym
         if (t.enclosingClass != null) {
           t.enclosingClass.sym.isAbstract = isAbstract
           t.enclosingClass.isAbstract = isAbstract
@@ -179,6 +180,7 @@ class Collector(tree : Stmt) {
     val sym = DefSymbol(name, isAbstract)
     sym.arity = arity
     sym.term = gens
+    //println("Collector: " + name + ": addDef, gens = " + sym.term)
     context.checkAdd(sym, stmt, newContext, pos)
     sym
   }
