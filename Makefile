@@ -11,7 +11,7 @@ build: $(SRC)
 	$(CC) $(CFLAGS) $^ -d classes
 
 test:
-	cd classes && $(CRUN) CharjParser.Parse
+	$(CRUN) -cp classes CharjParser.Parse
 
 clean:
 	-rm -rf classes/*
