@@ -30,6 +30,7 @@ case class ChareStmt(name : String, lst : List[Stmt]) extends Stmt {
 }
 case class DefStmt(isEntry : Option[String],
                    name : String,
+                   var gens : List[Term],
                    nthunks : Option[List[TypeParam]],
                    ret : Option[Type],
                    stmts : Stmt) extends Stmt {

@@ -164,13 +164,23 @@ object Checker {
   def checkTermString(s : String, tree : Stmt) : Term = {
     var may : Option[BoundClassSymbol] = None
     var cls : BoundClassSymbol = null
-    if (tree.enclosingClass != null) {
-      may = maybeResolveClass(Type(Tok(tree.enclosingClass.name + "_" + s)), tree)
+    val clsName = (if (tree.enclosingClass != null) tree.enclosingClass.name else "")
+    val defName = (if (tree.enclosingDef != null) tree.enclosingDef.name else "")
+
+    println("checkTermString: built name to check = " + clsName + "_" + defName + "_" + s)
+
+    if (tree.enclosingClass != null && tree.enclosingDef != null) {
+      println("checkTermString: both class and def and non-null")
+      may = maybeResolveClass(Type(Tok(clsName + "_" + defName + "_" + s)), tree)
     }
-    if (may.isEmpty) 
-      cls = resolveClassType(Type(Tok(s)), tree)
-    else
-      cls = may.get
+
+    if (may.isEmpty) {
+      if (tree.enclosingClass != null)
+        may = maybeResolveClass(Type(Tok(clsName + "_" + s)), tree)
+      if (may.isEmpty) cls = resolveClassType(Type(Tok(s)), tree)
+      else cls = may.get
+    } else cls = may.get
+
     val typ : Type = Type(Tok(s))
     if (verbose) println("resolved term string: " + typ + ", cls = " + cls)
     // no substitution needed because these are resolved terminals by definition
@@ -179,8 +189,8 @@ object Checker {
 
   def determineDefType(tree : Stmt) {
     tree.asInstanceOf[DefStmt] match {
-      case t@DefStmt(_, name, maybeParams, hasRet, lst) => {
-        if (verbose) println("resolving type for def: " + t);
+      case t@DefStmt(_, name, gens, maybeParams, hasRet, lst) => {
+        if (verbose) println("resolving type for def: " + t + " gens = " + gens);
         val lstParams = if (maybeParams.isEmpty) List() else maybeParams.get
         val inTypes = lstParams.map {tparam =>
           if (verbose) println("\tresolving type for param: " + tparam)

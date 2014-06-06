@@ -27,9 +27,10 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         maybeVisit(tree)
         traverseTree(lst)
       }
-      case t@DefStmt(_, _, nth, ret, lst) => {
+      case t@DefStmt(_, _, gens, nth, ret, lst) => {
         // set enclosing
         enclosingDef = t
+        t.enclosingDef = t
         tree.enclosingDef = t
 
         maybeVisit(tree)
@@ -38,14 +39,22 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
           for (t <- nth.get) traverseTree(t)
         }
 
-        if (!ret.isEmpty) maybeVisit(ret.get)
+        if (!ret.isEmpty) {
+          ret.get.enclosingDef = enclosingDef
+          ret.get.enclosingClass = enclosingClass
+          maybeVisit(ret.get)
+        }
 
         traverseTree(lst)
 
         // set enclosing
         enclosingDef = null
       }
-      case t@TypeParam(_, typ) => {maybeVisit(t); maybeVisit(typ)}
+      case t@TypeParam(_, typ) => {
+        t.enclosingDef = enclosingDef
+        typ.enclosingDef = enclosingDef
+        maybeVisit(t); maybeVisit(typ)
+      }
       case t@DeclStmt(_, _, typ, _) => {
         if (!typ.isEmpty) maybeVisit(typ.get)
         maybeVisit(tree)

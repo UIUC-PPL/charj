@@ -97,9 +97,9 @@ object Parse extends StandardTokenParsers with App {
   def semi = "{" ~ semiStmt.* ~ "}" ^^ { case _ ~ semi ~ _ => StmtList(semi) }
 
   def defStmt = positioned(
-    "entry".? ~ "def" ~ ident ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
-    ^^ { case isEntry ~ _ ~ ident ~ _ ~ typedParamList ~ _ ~ typeStmt ~ semi =>
-      DefStmt(isEntry, ident, typedParamList, typeStmt, semi)
+    "entry".? ~ "def" ~ ident ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
+    ^^ { case isEntry ~ _ ~ ident ~ gen ~ _ ~ typedParamList ~ _ ~ typeStmt ~ semi =>
+      DefStmt(isEntry, ident, if (gen.isEmpty) List() else gen.get, typedParamList, typeStmt, semi)
     }
   )
 

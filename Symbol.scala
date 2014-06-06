@@ -26,6 +26,7 @@ case class ClassSymbol(name : String, arity : Int) extends Symbol {
 
 case class DefSymbol(name : String, isAbstract : Boolean) extends Symbol {
   var inTypes : List[BoundClassSymbol] = List()
+  var term : List[Term] = List()
   var retType : BoundClassSymbol = null
   var isCons : Boolean = false
   var classCons : ClassStmt = null
