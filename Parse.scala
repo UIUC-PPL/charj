@@ -17,9 +17,9 @@ object Parse extends StandardTokenParsers with App {
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")", "$", "@", "%",
                          ":", ".", ",", ";", "&&", "||", "!",
-                         "<", "<=", ">", ">=", "+=", "-=", "#", "<>", "[]")
+                         "<", "<=", ">", ">=", "+=", "-=", "#")
 
-  val input = Source.fromFile("../input4.test").getLines.reduceLeft[String](_ + '\n' + _)
+  val input = Source.fromFile("../system.cp").getLines.reduceLeft[String](_ + '\n' + _)
   val tokens = new lexical.Scanner(input)
 
   val result = phrase(program)(tokens)
@@ -96,7 +96,12 @@ object Parse extends StandardTokenParsers with App {
 
   def semi = "{" ~ semiStmt.* ~ "}" ^^ { case _ ~ semi ~ _ => StmtList(semi) }
 
-  def funName = ident | "[]" | "<>"
+  def funName = (
+      ident
+    | "[" ~ "]" ^^ { case _ ~ _ => "[]" }
+    | "<" ~ ">" ^^ { case _ ~ _ => "<>" }
+    | "#" | "^" | "?"
+  )
 
   def defStmt = positioned(
     "entry".? ~ "def" ~ funName ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
@@ -191,13 +196,6 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case ident ~ gen ~ _ ~ params ~ _ => FunExpr(List(ident), if (gen.isEmpty) List() else gen.get, params) }
   )
 
-  def opCall1 = positioned(
-    "[" ~ parameters.? ~ "]" ^^ { case _ ~ params ~ _ => FunExpr(List("[]"), List(), params) }
-  )
-  def opCall2 = positioned(
-    "<" ~ parameters.? ~ ">" ^^ { case _ ~ params ~ _ => FunExpr(List("<>"), List(), params) }
-  )
-
   def newExpr = positioned(
     "new" ~ qualifiedIdent ~ generic.? ~ "(" ~ parameters.? ~ ")"
     ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(ident, if (generic.isEmpty) List() else generic.get,
@@ -207,15 +205,11 @@ object Parse extends StandardTokenParsers with App {
   def parameters = mkList(expression, ",")
 
   def mainExpr : Parser[Expression] = positioned(
-      funcCall ~ opCall1         ^^ { case f ~ op => DotExpr(f,op) }
-    | funcCall ~ opCall2         ^^ { case f ~ op => DotExpr(f,op) }
-    | funcCall
+      funcCall
     | newExpr
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }
     | "null"                     ^^ { case _      => Null() }
-    |  ident ~ opCall1           ^^ { case i ~ op => DotExpr(StrExpr(List(i)),op) }
-    |  ident ~ opCall2           ^^ { case i ~ op => DotExpr(StrExpr(List(i)),op) }
     |  ident                     ^^ { case ident  => StrExpr(List(ident)) }
     | "-" ~> expression          ^^ { case expr   => NegExpr(expr) }
     | numericLit                 ^^ { case lit    => NumLiteral(lit) }
@@ -224,20 +218,20 @@ object Parse extends StandardTokenParsers with App {
     | "!" ~> expression          ^^ { case expr   => NotExpr(expr) }
   )
 
-  def possOps = "!" | "$" | "#" | "@" | "%"
-  def opList : Parser[String] = possOps | possOps ~ opList ^^ { case p ~ l => p + l }
-
-  def opExpr : Parser[Expression] = positioned(
-    mainExpr ~ rep(opList ~ mainExpr)
+  def opCall1 = positioned(
+    "[" ~ parameters.? ~ "]" ^^ { case _ ~ params ~ _ => FunExpr(List("[]"), List(), params) }
+  )
+  def opCall : Parser[Expression] = positioned(
+    mainExpr ~ rep(opCall1)
     ^^ {
       case el ~ rest => (el /: rest) {
-        case (x, op ~ y) => AopExpr(x, y, op)
+        case (x, op) => DotExpr(x, op)
       }
     }
   )
 
   def dot : Parser[Expression] = positioned(
-    opExpr ~ rep("." ~ opExpr)
+    opCall ~ rep("." ~ opCall)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, "." ~ y) => DotExpr(x, y)
@@ -245,8 +239,31 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
+  def uniOps = "#" | "^" | "?"
+  def unaryExpr : Parser[Expression] = positioned(
+    dot ~ rep(uniOps)
+    ^^ {
+      case el ~ rest => (el /: rest) {
+        case (x, op) => DotExpr(x, FunExpr(List(op), List(), None))
+      }
+    }
+  )
+
+  def possOps = "$" | "@" | "%"
+  def possOps2 = "$" | "#" | "@" | "%" | "~" | "+" | "-" | "*" | "/" | "\\"
+  def opList : Parser[String] = possOps | possOps ~ opList2 ^^ { case p ~ l => p + l }
+  def opList2 : Parser[String] = possOps2 | possOps2 ~ opList2 ^^ { case p ~ l => p + l }
+  def opExpr : Parser[Expression] = positioned(
+    unaryExpr ~ rep(opList ~ unaryExpr)
+    ^^ {
+      case el ~ rest => (el /: rest) {
+        case (x, op ~ y) => AopExpr(x, y, op)
+      }
+    }
+  )
+
   def term : Parser[Expression] = positioned(
-    dot ~ rep("*" ~ dot | "/" ~ dot)
+    opExpr ~ rep("*" ~ opExpr | "/" ~ opExpr)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, "*" ~ y) => MulExpr(x, y)
