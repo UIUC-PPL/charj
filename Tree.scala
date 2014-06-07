@@ -28,6 +28,7 @@ case class ClassStmt(name : String, isSystem : Boolean, var generic : List[Term]
 case class ChareStmt(name : String, lst : List[Stmt]) extends Stmt {
   override def getName() = pos + "-> chare " + name
 }
+case class IncludeStmt(str : String) extends Stmt
 case class DefStmt(isEntry : Option[String],
                    name : String,
                    var gens : List[Term],

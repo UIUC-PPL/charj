@@ -8,47 +8,67 @@ import scala.util.parsing.combinator.lexical._
 import scala.io._
 import scala.language.postfixOps
 import scala.util.parsing.input.Positional
+import scala.collection.mutable.ListBuffer
 
 object Parse extends StandardTokenParsers with App {
   lexical.reserved += ("class", "entry", "def", "val", "var",
                        "chare", "mainchare", "charearray",
                        "if", "else", "true", "false", "new",
-                       "for", "while", "return", "null")
+                       "for", "while", "return", "null", "include")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")", "$", "@", "%",
                          ":", ".", ",", ";", "&&", "||", "!", "^", "?",
                          "<", "<=", ">", ">=", "+=", "-=", "#")
 
-  val input = Source.fromFile("../system.cp").getLines.reduceLeft[String](_ + '\n' + _)
-  val tokens = new lexical.Scanner(input)
-
-  val result = phrase(program)(tokens)
-
-  result match {
-    case Success(tree, _) => {
-      import BaseContext.verbose
-      verbose = true
-
-      if (verbose) println("--- successfully parsed AST ---")
-      if (verbose) println(tree)
-
-      BaseContext.base = tree
-
-      if (verbose) println("--- begin complete symbol collection ---")
-      val col = new Collector(tree)
-      col.start()
-      if (verbose) println("--- symbol collections in nested contexts ---")
-      if (verbose) col.print(Tuple2(BaseContext.context, EmptyStmt()), 1)
-
-      val checker = new Checker(tree)
-      checker.start()
-
-      println("Static checker finished")
-    }
-    case e: NoSuccess => {
-      Console.err.println(e)
+  // recursively follow includes (circular includes will cause a problem)
+  def parseRecur(file : String) : Stmt = {
+    val input = Source.fromFile(file).getLines.reduceLeft[String](_ + '\n' + _)
+    val tokens = new lexical.Scanner(input)
+    val result = phrase(program)(tokens)
+    
+    result match {
+      case Success(tree, _) => {
+        def traverseTree(cur : Stmt, curList : ListBuffer[String]) {
+          cur match {
+            case StmtList(lst) => {
+              for (stmt <- lst) traverseTree(stmt, curList)
+            }
+            case IncludeStmt(str) => curList += str
+            case _ => ;
+          }
+        }
+        val lb : ListBuffer[String] = ListBuffer[String]()
+        traverseTree(tree, lb)
+        if (lb.length == 0) tree
+        else StmtList(lb.map{parseRecur(_)}.map{_.asInstanceOf[StmtList].lst}.reduceLeft(_ ++ _) ++
+                      tree.asInstanceOf[StmtList].lst)
+      }
+      case e: NoSuccess => { Console.err.println(e); StmtList(List()) }
     }
   }
+  def frontEnd(tree : Stmt) {
+    import BaseContext.verbose
+    verbose = true
+
+    if (verbose) println("--- successfully parsed AST ---")
+    if (verbose) println(tree)
+
+    BaseContext.base = tree
+
+    if (verbose) println("--- begin complete symbol collection ---")
+    val col = new Collector(tree)
+    col.start()
+    if (verbose) println("--- symbol collections in nested contexts ---")
+    if (verbose) col.print(Tuple2(BaseContext.context, EmptyStmt()), 1)
+
+    val checker = new Checker(tree)
+    checker.start()
+
+    println("Static checker finished")
+  }
+
+  // run the front end of the compiler
+  frontEnd(parseRecur(args(0)))
 
   def program = positioned(outerStmt.* ^^ { case stmts => StmtList(stmts) })
 
@@ -56,6 +76,7 @@ object Parse extends StandardTokenParsers with App {
       classStmt
     | chareStmt
     | defStmt
+    | includeStmt
   )
 
   def innerStmtList = innerStmt.*
@@ -103,6 +124,10 @@ object Parse extends StandardTokenParsers with App {
     | "[" ~ "]" ^^ { case _ ~ _ => "[]" }
     | "<" ~ ">" ^^ { case _ ~ _ => "<>" }
     | "#" | "^" | "?"
+  )
+
+  def includeStmt = positioned(
+    "include" ~ stringLit ~ ";" ^^ { case _ ~ str ~ _ => IncludeStmt(str) }
   )
 
   def defStmt = positioned(

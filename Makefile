@@ -11,7 +11,7 @@ build: $(SRC)
 	$(CC) $(CFLAGS) $^ -d classes
 
 test:
-	$(CRUN) -cp classes CharjParser.Parse
+	./compile.sh system.cp
 
 clean:
 	-rm -rf classes/*
