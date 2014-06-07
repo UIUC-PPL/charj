@@ -25,14 +25,15 @@ object ClassEquality {
     if (!Unifier(false).isEqual(l1, r1)) {
       val lm1 = maybeResolveClass(Type(l1), null)
       val rm1 = maybeResolveClass(Type(r1), null)
-      println("lm1 = " + lm1 + ", rm1 = " + rm1)
+      if (verbose) println("lm1 = " + lm1 + ", rm1 = " + rm1)
       if (!lm1.isEmpty && !rm1.isEmpty) {
         if (lm1.get.cs.level > rm1.get.cs.level && (d == LHS() || d == Both())) {
-          println("l.level = " + lm1.get.cs.level + ", r.level = " + rm1.get.cs.level)
+          if (verbose) println("l.level = " + lm1.get.cs.level + ", r.level = " + rm1.get.cs.level)
           val newl1 = bindParentClass(lm1.get)
           return equal(newl1, r, d)
         } else if (lm1.get.cs.level < rm1.get.cs.level && (d == RHS() || d == Both())) {
-          println("l.cs = " + lm1.get.cs + ", l.cs.level = " + lm1.get.cs.level + ", r.level = " + rm1.get.cs.level)
+          if (verbose) println("l.cs = " + lm1.get.cs + ", l.cs.level = " + lm1.get.cs.level +
+                               ", r.level = " + rm1.get.cs.level)
           val newr1 = bindParentClass(rm1.get)
           return equal(l, newr1, d)
         } else false

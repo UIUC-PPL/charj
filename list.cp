@@ -1,3 +1,6 @@
+include "ref.cp";
+include "base.cp";
+
 class Seq[T] {
    def first() : T;
    def last() : T;

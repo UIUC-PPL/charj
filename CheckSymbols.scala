@@ -82,13 +82,13 @@ object Checker {
   def checkStmtType(tree : Stmt) {
     tree match {
       case t@AssignStmt(lval, _, rval) => {
-        println(t.pos + ": check assign of: rsym = " + rval.sym + ", lsym = " + lval.sym)
+        if (verbose) println(t.pos + ": check assign of: rsym = " + rval.sym + ", lsym = " + lval.sym)
 
         if (!ClassEquality.equal(rval.sym, lval.sym) && !rval.sym.isNull)
           SemanticError("tried to assign to different class type: " + t.sym, rval.pos)
       }
       case t@IfStmt(cond, _, _) => {
-        println(t.pos + ": check if stmt: cond sym = " + cond.sym)
+        if (verbose) println(t.pos + ": check if stmt: cond sym = " + cond.sym)
 
         if (cond.sym == null)
           SemanticError("if statement condition type not determined", t.pos)
@@ -102,7 +102,7 @@ object Checker {
           SemanticError("while statement condition must be of type boolean", t.pos)
       }
       case t@DeclStmt(_, _, optType, Some(expr1)) => {
-        println(t.pos + ": check decl stmt: expr1 sym = " + expr1.sym)
+        if (verbose) println(t.pos + ": check decl stmt: expr1 sym = " + expr1.sym)
 
         if (expr1.sym == null)
           SemanticError("decl statement condition type not determined", t.pos)
@@ -114,8 +114,7 @@ object Checker {
         }
       }
       case t@ReturnStmt(optExp) => {
-        println(t.pos + ": check return stmt")
-
+        if (verbose) println(t.pos + ": check return stmt")
         if (verbose) println("retType = " + t.enclosingDef.sym.retType)
 
         if (optExp.isEmpty) {
@@ -167,10 +166,11 @@ object Checker {
     val clsName = (if (tree.enclosingClass != null) tree.enclosingClass.name else "")
     val defName = (if (tree.enclosingDef != null) tree.enclosingDef.name else "")
 
-    println("checkTermString: built name to check = " + clsName + "_" + defName + "_" + s)
+    if (verbose) println("checkTermString: built name to check = " + clsName + "_" + defName + "_" + s)
 
-    if (tree.enclosingClass != null && tree.enclosingDef != null)
-      println("checkTermString: both class and def and non-null")
+    if (tree.enclosingClass != null && tree.enclosingDef != null) {
+      if (verbose) println("checkTermString: both class and def and non-null")
+    }
 
     may = maybeResolveClass(Type(Tok(clsName + "_" + defName + "_" + s)), tree)
 
@@ -257,7 +257,7 @@ object Checker {
         return null
       }
     }
-    println("determineDeclType: " + n1)
+    if (verbose) println("determineDeclType: " + n1)
     val sym = resolveClassType(t1, tree)
     val thisSym = tree.context.resolve{a : (Symbol,Context) => a._1 match {
       case DeclSymbol(n, _) => n == n1
@@ -300,7 +300,7 @@ object Checker {
           expr.sym = resolveClassType(Type(intType), cls)
       }
       case StrExpr(lst) => {
-        println("strexpr determine type of: " + lst)
+        if (verbose) println("strexpr determine type of: " + lst)
 
         val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
 
@@ -423,16 +423,16 @@ object Checker {
             // instantiate with parameter types
             if (gens.length == 0) {
               compGens = lst.map{t1 =>
-                println("creating type from input: " + t1)
+                if (verbose) println("creating type from input: " + t1)
                 val sub1 = Unifier(false).subst(t1.cs.t, t1.bindings)
                 sub1
               }.take(t.term.length)
             }
             val t1 : Term = Fun(methodName, compGens)
             val t2 : Term = Fun(methodName, t.term)
-            println("t1 term = " + t1 + ", t2 term = " + t2)
+            if (verbose) println("t1 term = " + t1 + ", t2 term = " + t2)
             function_bindings = Unifier(true).unifyTerm(t1, t2, List());
-            println("generic function inst bindings = " + function_bindings)
+            if (verbose) println("generic function inst bindings = " + function_bindings)
           }
 
           val toComp = (t.inTypes,lst).zipped.toList
@@ -497,15 +497,15 @@ object Checker {
       case _ => false 
     }}
 
-    println("findDeclType: sym = " + sym);
+    if (verbose) println("findDeclType: sym = " + sym);
 
     if (sym.isEmpty) SemanticError("symbol " + ident + " unknown", cls.pos)
 
     val d = sym.get._1.asInstanceOf[DeclSymbol]
     val (nt, ncon) = findNew(d.declType, sym.get._2 ++ bindings)
 
-    println("findDeclType: d.declType.bindings = " + d.declType.bindings + ", sym.get._2 = " + sym.get._2 + ", bindings = " + bindings)
-    println("findDeclType: nt = " + nt)
+    if (verbose) println("findDeclType: d.declType.bindings = " + d.declType.bindings + ", sym.get._2 = " + sym.get._2 + ", bindings = " + bindings)
+    if (verbose) println("findDeclType: nt = " + nt)
 
     val bcs = maybeResolveClass(Type(nt), null)
 
