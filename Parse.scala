@@ -20,6 +20,13 @@ object Parse extends StandardTokenParsers with App {
                          ":", ".", ",", ";", "&&", "||", "!", "^", "?",
                          "<", "<=", ">", ">=", "+=", "-=", "#")
 
+  // set verbosity to true for testing
+  import BaseContext.verbose
+  verbose = true
+
+  // assume flattened file names here
+  val lstIncludes : ListBuffer[String] = ListBuffer[String]()
+
   // recursively follow includes (circular includes will cause a problem)
   def parseRecur(file : String) : Stmt = {
     val input = Source.fromFile(file).getLines.reduceLeft[String](_ + '\n' + _)
@@ -33,7 +40,13 @@ object Parse extends StandardTokenParsers with App {
             case StmtList(lst) => {
               for (stmt <- lst) traverseTree(stmt, curList)
             }
-            case IncludeStmt(str) => curList += str
+            case IncludeStmt(str) => {
+              if (!(lstIncludes contains str)) {
+                if (verbose) println("including file: " + str)
+                curList += str
+                lstIncludes += str
+              }
+            }
             case _ => ;
           }
         }
@@ -43,13 +56,10 @@ object Parse extends StandardTokenParsers with App {
         else StmtList(lb.map{parseRecur(_)}.map{_.asInstanceOf[StmtList].lst}.reduceLeft(_ ++ _) ++
                       tree.asInstanceOf[StmtList].lst)
       }
-      case e: NoSuccess => { Console.err.println(e); StmtList(List()) }
+      case e: NoSuccess => { Console.err.println(e); System.exit(1); StmtList(List()) }
     }
   }
   def frontEnd(tree : Stmt) {
-    import BaseContext.verbose
-    verbose = true
-
     if (verbose) println("--- successfully parsed AST ---")
     if (verbose) println(tree)
 
@@ -68,6 +78,7 @@ object Parse extends StandardTokenParsers with App {
   }
 
   // run the front end of the compiler
+  lstIncludes += args(0)
   frontEnd(parseRecur(args(0)))
 
   def program = positioned(outerStmt.* ^^ { case stmts => StmtList(stmts) })
