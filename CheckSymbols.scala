@@ -442,10 +442,11 @@ object Checker {
             val u = Unifier(false)
             val sub1 = u.subst(t1.cs.t, t1.bindings ++ function_bindings ++ bindings)
             val sub2 = u.subst(t2.cs.t, t2.bindings)
-            if (verbose) println("after: t1 = " + sub1 + ", t2 = " + sub2)
-            if (verbose) println("check if terms are equal: " + u.isEqual(sub1, sub2))
             if (t2.isNull && sub1.isInstanceOf[Fun]) isMatching = true
-            else if (!u.isEqual(sub1, sub2)) isMatching = false
+            else if (!ClassEquality.equal(BoundClassSymbol(t1.cs, t1.bindings ++ function_bindings ++ bindings),
+                                          t2, ClassEquality.RHS())) isMatching = false
+            if (verbose) println("after: t1 = " + sub1 + ", t2 = " + sub2)
+            if (verbose) println("check if terms are equal: " + isMatching)
           }
           isMatching
         } else false
