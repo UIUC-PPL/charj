@@ -115,6 +115,8 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
     expr match {
       case t@StrLiteral(_) => visit2(t, s)
       case t@NumLiteral(_) => visit2(t, s)
+      case t@AsyncExpr(l) => {visit(l, s); visit2(t, s)}
+      case t@SyncExpr(l) => {visit(l, s); visit2(t, s)}
       case MulExpr(l, r) => visitBinary(l, r, s, expr)
       case DivExpr(l, r) => visitBinary(l, r, s, expr)
       case AddExpr(l, r) => visitBinary(l, r, s, expr)

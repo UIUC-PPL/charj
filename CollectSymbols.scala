@@ -9,15 +9,16 @@ object BasicTypes {
   val charType = Bound("char")
   val unitType = Bound("unit")
   val refType = Fun("Ref", List(MVar("T")))
+
+  def isBasic(t : Term) : Boolean = {
+    t == booleanType || t == intType || t == stringType || t == charType || t == unitType;
+  }
 }
 
 class Collector(tree : Stmt) {
   import BasicTypes._
 
-  def start() = {
-    traverseTree(tree, BaseContext.context)
-    //BaseContext.context.addInImplicits(null)
-  }
+  def start() = traverseTree(tree, BaseContext.context)
 
   def print(context : Tuple2[Context, Stmt], indent : Int) {
     val str = (0 to indent).map(_ => "\t").foldLeft("")((b,a) => b + a)
@@ -102,8 +103,8 @@ class Collector(tree : Stmt) {
         if (t.enclosingClass != null)
           con.sym = enclosingClass.sym
         if (t.enclosingClass != null) {
-          t.enclosingClass.sym.isAbstract = isAbstract
-          t.enclosingClass.isAbstract = isAbstract
+          t.enclosingClass.sym.isAbstract ||= isAbstract
+          t.enclosingClass.isAbstract ||= isAbstract
           t.sym.isConstructor = isConstructor
           t.isConstructor = isConstructor
         }
@@ -120,8 +121,9 @@ class Collector(tree : Stmt) {
       case t@TypeParam(_, typ) => traverseTree(typ, context)
       case t@DeclStmt(mutable, name, typ, expr) => {
         if (expr.isEmpty && t.enclosingClass != null) {
-          t.enclosingClass.sym.isAbstract = true
-          t.enclosingClass.isAbstract = true
+          // @todo what about undefined decls?
+          //t.enclosingClass.sym.isAbstract = true
+          //t.enclosingClass.isAbstract = true
         }
         t.sym = addDecl(context, tree, null, name, tree.pos, mutable)
         if (!typ.isEmpty) traverseTree(typ.get, context)

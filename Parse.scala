@@ -12,7 +12,7 @@ import scala.collection.mutable.ListBuffer
 
 object Parse extends StandardTokenParsers with App {
   lexical.reserved += ("class", "entry", "def", "val", "var",
-                       "chare", "mainchare", "charearray",
+                       "chare", "mainchare", "charearray", "async", "sync",
                        "if", "else", "true", "false", "new",
                        "for", "while", "return", "null", "include")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
@@ -244,6 +244,8 @@ object Parse extends StandardTokenParsers with App {
 
   def mainExpr : Parser[Expression] = positioned(
       funcCall
+    | "async" ~> expression      ^^ { case expr   => AsyncExpr(expr) }
+    | "sync"  ~> expression      ^^ { case expr   => SyncExpr(expr) }
     | newExpr
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }

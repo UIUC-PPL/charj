@@ -352,7 +352,7 @@ object Checker {
       case t@DeclStmt(_, name, Some(typ), _) => { n1 = name; t1 = typ }
       case t@TypeParam(name, typ) => { n1 = name ; t1 = typ }
       case _ => {
-        SemanticError("cannot determine decl type", tree.pos)
+        SemanticError("decl types must be explicit currently", tree.pos)
         return null
       }
     }
@@ -392,6 +392,12 @@ object Checker {
       }
       case StrLiteral(str) => {
         expr.sym = resolveClassType(Type(stringType), cls)
+      }
+      case AsyncExpr(aexpr) => {
+        expr.sym = aexpr.sym
+      }
+      case SyncExpr(sexpr) => {
+        expr.sym = sexpr.sym
       }
       case NumLiteral(str) => {
         val theInt = tryConvertToInt(str)
@@ -477,9 +483,9 @@ object Checker {
   def checkBinarySet(l : Expression, r : Expression, cur : Expression, ret : BoundClassSymbol) {
     if (l.sym.isNull || r.sym.isNull) {
       if (verbose) println("found left or right is Null()")
-      if (!(r.sym.isNull && l.sym.cs.t.isInstanceOf[Fun]||
-            l.sym.isNull && r.sym.cs.t.isInstanceOf[Fun]))
-        SemanticError("a literal may not be compared to null", r.pos)
+      if ((r.sym.isNull && BasicTypes.isBasic(l.sym.cs.t)) ||
+          (l.sym.isNull && BasicTypes.isBasic(r.sym.cs.t)))
+        SemanticError("r = " + r.sym.cs.t + ", l = " + l.sym.cs.t + ": a literal may not be compared to null", r.pos)
     } else if (!ClassEquality.equal(l.sym, r.sym))
       SemanticError("binary op " + cur + " with different types: " + l.sym + " at " + l.pos +  ", " + r.sym, r.pos)
     if (verbose) println("setting up expr to type: " + ret)

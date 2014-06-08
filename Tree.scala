@@ -74,6 +74,9 @@ trait HasBoundClass { var sym : BoundClassSymbol = null }
 trait HasContext { var context : Context = null }
 abstract class Expression extends Positional with HasBoundClass with HasContext
 
+case class AsyncExpr(e : Expression) extends Expression
+case class SyncExpr(e : Expression) extends Expression
+
 case class StrLiteral(text : String) extends Expression
 case class NumLiteral(num : String) extends Expression
 
