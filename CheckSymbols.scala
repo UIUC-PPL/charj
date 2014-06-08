@@ -117,6 +117,12 @@ object Checker {
         if (!ClassEquality.equal(expr1.sym, resolveClassType(Type(booleanType),tree)))
           SemanticError("while statement condition must be of type boolean", t.pos)
       }
+      case t@ForStmt(decls, expr1, cont, stmt) => {
+        if (expr1.sym == null)
+          SemanticError("for statement condition type not determined", t.pos)
+        if (!ClassEquality.equal(expr1.sym, resolveClassType(Type(booleanType),tree)))
+          SemanticError("for statement condition must be of type boolean", t.pos)
+      }
       case t@DeclStmt(_, _, optType, Some(expr1)) => {
         if (verbose) println(t.pos + ": check decl stmt: expr1 sym = " + expr1.sym)
 
