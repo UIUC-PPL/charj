@@ -19,6 +19,8 @@ case class ClassSymbol(name : String, arity : Int) extends Symbol {
   var t : Term = null
   var isAbstract : Boolean = false
   var context : Context = new Context(None, false)
+  var parentBindings : ListBuffer[(Term,Term)] = ListBuffer()
+  var stmt : ClassStmt = null
   var level : Int = -1
   var children : ListBuffer[ClassSymbol] = ListBuffer()
   override def toString = t.toString

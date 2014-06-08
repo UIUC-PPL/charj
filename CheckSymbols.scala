@@ -1,7 +1,7 @@
 package CharjParser
 
 import scala.util.parsing.input.{Positional,Position}
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer,ListBuffer}
 
 /*
  * Todos:
@@ -41,6 +41,12 @@ class Checker(tree : Stmt) {
     new StmtVisitor(tree, filterType, findFreeVars);
     new ExprVisitor(tree, findFreeVarsExpr);
 
+    // Traverse all abstract defs and add them to a list for the
+    // abstract class that must be implemented to make it concrete
+    if (verbose) println("###\n### traverse defs/classes to determine concreteness ###\n###")
+    def filterDefs(cls : Stmt) = cls.isInstanceOf[DefStmt]
+    new StmtVisitor(tree, filterDefs, abstractSignatures)
+
     // Find subclasses for each class along with level in inheritance
     // hierarchy
     if (verbose) println("###\n### traverse resolve class type ###\n###")
@@ -49,7 +55,8 @@ class Checker(tree : Stmt) {
     // Print the level for each class
     if (verbose) println("###\n### traverse print class level ###\n###")
     def printClassLevel(cls : Stmt) = println(cls.pos + ": class name = " + cls.asInstanceOf[ClassStmt].name +
-                                              ", level = " + cls.asInstanceOf[ClassStmt].sym.level)
+                                              ", level = " + cls.asInstanceOf[ClassStmt].sym.level +
+                                              ", abstract = " + cls.asInstanceOf[ClassStmt].isAbstract)
     new StmtVisitor(tree, filterClass, printClassLevel);
 
     // Resolve the type (symbol) for each decl (var or val)
@@ -59,7 +66,6 @@ class Checker(tree : Stmt) {
 
     // Resolve the type (symbol) for each def (function/method)
     if (verbose) println("###\n### traverse resolve def type ###\n###")
-    def filterDefs(cls : Stmt) = cls.isInstanceOf[DefStmt]
     new StmtVisitor(tree, filterDefs, determineDefType)
 
     // Traverse all expressions and propagate types, check binary
@@ -78,6 +84,16 @@ class Checker(tree : Stmt) {
 object Checker {
   import BasicTypes._
   import BaseContext.verbose
+
+  def abstractSignatures(tree : Stmt) {
+    tree match {
+      case t@DefStmt(_,n,_,_,_,_) if (t.enclosingClass != null && t.isAbstract) => {
+        if (verbose) println(t.enclosingClass.name + ": add abstract def: " + n)
+        t.enclosingClass.abstractDefs += t
+      }
+      case _ => ;
+    }
+  }
 
   def checkStmtType(tree : Stmt) {
     tree match {
@@ -217,8 +233,78 @@ object Checker {
 
   def setChildrenLevelRecur(sym : ClassSymbol) {
     for (child <- sym.children) {
+      val cls = resolveClassType(child.stmt.parent.get, child.stmt)
+      // compute this classes bindings
+      child.parentBindings ++= cls.bindings
+      // propagate parent bindings up
+      child.parentBindings ++= cls.cs.parentBindings
       child.level = sym.level + 1
+      addAbstractDefs(child.stmt, sym.stmt, child.parentBindings)
       setChildrenLevelRecur(child)
+    }
+  }
+
+  def checkDefsMatch(abs : DefStmt, t : DefStmt, bindings : ListBuffer[(Term,Term)]) = {
+    if (abs.name == t.name &&
+        abs.gens.length == t.gens.length) {
+      println("checking if defs match: " + abs + ", " + t)
+      var matchingInputs = true
+      var matchingOutput = true
+      
+      // check each param for matching types
+      (abs.nthunks,t.nthunks) match {
+        case (Some(l1),Some(l2)) => {
+          if (l1.length == l2.length) {
+            for ((p1,p2) <- (l1,l2).zipped.toList) {
+              val sub1 = Unifier(false).subst(p1.typ.full, bindings.toList)
+              println("\t input: " + p1 + ", " + p2)
+              var iseq = Unifier(false).isEqual(sub1, p2.typ.full)
+              println("\t input bound: " + sub1 + ", " + p2 + " with binds: " + bindings + " => " + iseq)
+              if (!iseq) matchingInputs = false
+            }
+          } else matchingInputs = false
+        }
+        case _ => matchingInputs = true
+      }
+
+      // check for matching output types
+      // @todo what about unit/implicit specification
+      println("\t returns: " + abs.ret + ", " + t.ret)
+      (abs.ret,t.ret) match {
+        case (Some(r1),Some(r2)) => {
+          val sub1 = Unifier(false).subst(r1.full, bindings.toList)
+          println("\t output: " + r1 + ", " + r2)
+          var iseq = Unifier(false).isEqual(sub1, r2.full)
+          println("\t output bound: " + sub1 + ", " + r2 + " with binds: " + bindings + " => " + iseq)
+          matchingOutput = iseq
+        }
+        case (None,None) => matchingOutput = true
+        case _ => matchingOutput = false
+      }
+
+      matchingInputs && matchingOutput
+    } else false
+  }
+
+  def addAbstractDefs(cur : ClassStmt, parent : ClassStmt, bindings : ListBuffer[(Term,Term)]) {
+    for (abs <- parent.abstractDefs) {
+      var foundMatch = false
+
+      def checkDef(tree : Stmt) {
+        tree match {
+          case t@DefStmt(_,_,_,_,_,_) => {
+            if (checkDefsMatch(abs, t, bindings)) foundMatch = true
+          }
+        }
+      }
+      new StmtVisitor(cur, _.isInstanceOf[DefStmt], checkDef)
+      
+      if (!foundMatch) {
+        cur.abstractDefs += abs
+        println("&&&&&& " + cur.name + " detected abstract: " + cur.abstractDefs)
+        cur.isAbstract = true
+        cur.sym.isAbstract = true
+      }
     }
   }
 
@@ -234,7 +320,14 @@ object Checker {
         // and down the tree as classes are introduced, building the
         // parent-child relationship both ways
         cls.cs.children += t.sym
-        if (cls.cs.level != -1) t.sym.level = cls.cs.level + 1
+        if (cls.cs.level != -1) {
+          t.sym.level = cls.cs.level + 1
+          // add in this classes bindings
+          t.sym.parentBindings ++= cls.bindings
+          // propagate bindings up to parent
+          t.sym.parentBindings ++= cls.cs.parentBindings
+          addAbstractDefs(t, cls.cs.stmt, t.sym.parentBindings)
+        }
       }
       case t@ClassStmt(name, _, _, None, _) => {
         // Propagate level counts up the inheritance tree, once the
@@ -382,6 +475,7 @@ object Checker {
         SemanticError("a literal may not be compared to null", r.pos)
     } else if (!ClassEquality.equal(l.sym, r.sym))
       SemanticError("binary op " + cur + " with different types: " + l.sym + " at " + l.pos +  ", " + r.sym, r.pos)
+    if (verbose) println("setting up expr to type: " + ret)
     cur.sym = ret
   }
 
@@ -410,8 +504,10 @@ object Checker {
           function_bindings = List()
 
           if (t.isCons && t.classCons.generic != List()) {
-            if (verbose) println("\tis constructor def")
+            if (verbose) println("\t is constructor def: abstract = " + t.classCons.sym)
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
+            // if the class constructor being called is abstract this is invalid
+            if (t.classCons.sym.isAbstract) SemanticError("can not instantiate abstract class", cls.pos);
             function_bindings = Unifier(true).unifyTerm(Fun(name, gens), t.classCons.getType().full, List())
             if (verbose) println("constructor bindings = " + function_bindings)
           }

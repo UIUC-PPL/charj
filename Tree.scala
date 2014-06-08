@@ -1,6 +1,7 @@
 package CharjParser
 
 import scala.util.parsing.input.{Positional,Position}
+import scala.collection.mutable.ListBuffer
 
 // If a new Stmt or Expression is added to this tree, remember to update the
 // *Visitor classes
@@ -19,6 +20,7 @@ case class ClassStmt(name : String, isSystem : Boolean, var generic : List[Term]
                      parent : Option[Type], var lst : List[Stmt]) extends Stmt {
   var sym : ClassSymbol = null
   var isAbstract : Boolean = false
+  var abstractDefs : ListBuffer[DefStmt] = ListBuffer()
   def getType() : Type = {
     if (generic == List()) Type(Bound(name))
     else Type(Fun(name, generic))
@@ -35,6 +37,7 @@ case class DefStmt(isEntry : Option[String],
                    nthunks : Option[List[TypeParam]],
                    ret : Option[Type],
                    stmts : Stmt) extends Stmt {
+  var isAbstract : Boolean = false
   var sym : DefSymbol = null
   var isConstructor : Boolean = false
   override def getName() = pos + "-> def " + name  + "[isConstructor = " + isConstructor + "]"

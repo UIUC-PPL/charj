@@ -53,6 +53,7 @@ class Collector(tree : Stmt) {
         }}
         // do not use generic past this point
         t.sym = addClass(context, tree, con, name, arity, tree.pos, t.generic, true)
+        t.sym.stmt = t
         t.sym.context = con
         con.sym = t.sym
         t.context = con
@@ -75,6 +76,7 @@ class Collector(tree : Stmt) {
       case t@DefStmt(_, name, _, nthunks, ret, lst) => {
         val con = newContext(context, tree, true)
         val isAbstract = lst == EmptyStmt()
+        t.isAbstract = isAbstract
         val isConstructor = t.enclosingClass != null && t.enclosingClass.name == name
         val arity = if (nthunks.isEmpty) 0 else nthunks.get.length
 
