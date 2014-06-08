@@ -126,25 +126,31 @@ class Collector(tree : Stmt) {
         t.sym = addDecl(context, tree, null, name, tree.pos, mutable)
         if (!typ.isEmpty) traverseTree(typ.get, context)
       }
-      case ForStmt(decls, _, cont, stmt) => {
+      case t@ForStmt(decls, _, cont, stmt) => {
         val con = newContext(context, tree, true)
-        con.sym = enclosingClass.sym
+        if (enclosingClass != null)
+          con.sym = enclosingClass.sym
+        t.context = con
         traverseTree(decls, con)
+        traverseTree(cont, con)
         traverseTree(stmt, con)
       }
       case IfStmt(_, stmt1, stmt2) => {
         val con = newContext(context, stmt1, true)
-        con.sym = enclosingClass.sym
+        if (enclosingClass != null)
+          con.sym = enclosingClass.sym
         traverseTree(stmt1, con)
         if (!stmt2.isEmpty) {
           val con2 = newContext(context, stmt2.get, true)
-          con2.sym = enclosingClass.sym
+          if (enclosingClass != null)
+            con2.sym = enclosingClass.sym
           traverseTree(stmt2, con2)
         }
       }
       case WhileStmt(_, stmt) => {
         val con = newContext(context, stmt, true)
-        con.sym = enclosingClass.sym
+        if (enclosingClass != null)
+          con.sym = enclosingClass.sym
         traverseTree(stmt, con)
       }
       case _ => ;

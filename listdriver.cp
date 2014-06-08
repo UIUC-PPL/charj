@@ -11,7 +11,7 @@ class Test[M] {
    def Test() {}
 }
 
-def main() {
+def main(args : Array[string]) {
   val lst : List[Ref[int]] = list(^5);
   lst.push(^10);
   val lst2 : List[Option[int]];
@@ -20,6 +20,15 @@ def main() {
   lst2.push(Some[int](22));
   val mmm : Ref[Test[int]] = ^Test[int]();
   val nnn : int = (mmm#)[3];
+
+  val iter : Iterator[Ref[int], Linked[Ref[int]]] = lst.iterator();
+  while (iter.hasNext()) {
+    val x : int = iter.current()#;
+  }
+
+  for (val i : int = 0; i < 10; i += 1) {
+
+  }
 }
 
 

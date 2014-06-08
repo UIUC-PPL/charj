@@ -95,7 +95,10 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
       case ExprStmt(expr) => visit(expr, tree)
       case AssignStmt(expr1, _, expr2) => {visit(expr1, tree); visit(expr2, tree)}
       case IfStmt(expr, _, _) => visit(expr, tree)
-      case ForStmt(_, expr, _, _) => visit(expr, tree)
+      // hack to make sure that the stmt used to place the expr
+      // (positionally) looks like it lexigraphically follows the
+      // decls
+      case ForStmt(_, expr, _, stmt) => visit(expr, stmt)
       case WhileStmt(expr, _) => visit(expr, tree)
       case ReturnStmt(Some(expr)) => visit(expr, tree)
       case _ => ;
