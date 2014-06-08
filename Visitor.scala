@@ -117,11 +117,13 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
       case AddExpr(l, r) => visitBinary(l, r, s, expr)
       case SubExpr(l, r) => visitBinary(l, r, s, expr)
       case OrrExpr(l, r) => visitBinary(l, r, s, expr)
+      case AndExpr(l, r) => visitBinary(l, r, s, expr)
       case ComExpr(l, r) => visitBinary(l, r, s, expr)
       case LesExpr(l, r) => visitBinary(l, r, s, expr)
       case LeqExpr(l, r) => visitBinary(l, r, s, expr)
       case GesExpr(l, r) => visitBinary(l, r, s, expr)
       case GeqExpr(l, r) => visitBinary(l, r, s, expr)
+      case NeqExpr(l, r) => visitBinary(l, r, s, expr)
       case AopExpr(l, r, op) => visitBinary(l, r, s, expr)
       case DotExpr(l, r) => {
         // lhs traversal order, following by post, for resolution

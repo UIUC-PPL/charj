@@ -1,5 +1,6 @@
 include "system.cp";
 include "list.cp";
+include "array.cp";
 include "option.cp";
 
 class Test[M] {
@@ -20,6 +21,7 @@ def main() {
   val mmm : Ref[Test[int]] = ^Test[int]();
   val nnn : int = (mmm#)[3];
 }
+
 
 
 

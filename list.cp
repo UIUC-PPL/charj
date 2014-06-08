@@ -2,11 +2,6 @@ include "ref.cp";
 include "base.cp";
 include "iterable.cp";
 
-class Seq[T, Item] : Iterable[T, Item] {
-   def first() : T;
-   def last() : T;
-}
-
 class Linked[T] {
   val item : Ref[T] = null;
   val next : Linked[T] = null;
@@ -30,6 +25,7 @@ class List[T] : Seq[T, Linked[T]] {
     back = back_;
   }
 
+  // Seq interface
   def first() : T { return front.item#; }
   def last() : T { return back#; }
 

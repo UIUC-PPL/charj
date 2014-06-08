@@ -18,7 +18,7 @@ object Parse extends StandardTokenParsers with App {
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")", "$", "@", "%",
                          ":", ".", ",", ";", "&&", "||", "!", "^", "?",
-                         "<", "<=", ">", ">=", "+=", "-=", "#")
+                         "<", "<=", ">", ">=", "+=", "-=", "#", "<>")
 
   // set verbosity to true for testing
   import BaseContext.verbose
@@ -327,7 +327,7 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def comp : Parser[Expression] = positioned(
-    expr ~ rep("<" ~ expr | "<=" ~ expr | ">" ~ expr | ">=" ~ expr | "==" ~ expr)
+    expr ~ rep("<>" ~ expr | "<" ~ expr | "<=" ~ expr | ">" ~ expr | ">=" ~ expr | "==" ~ expr)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, "<" ~ y) =>  LesExpr(x, y)
@@ -335,6 +335,7 @@ object Parse extends StandardTokenParsers with App {
         case (x, ">" ~ y) =>  GesExpr(x, y)
         case (x, ">=" ~ y) => GeqExpr(x, y)
         case (x, "==" ~ y) => ComExpr(x, y)
+        case (x, "<>" ~ y) => NeqExpr(x, y)
       }
     }
   )

@@ -28,3 +28,8 @@ class Iterator[T, Item] {
     it.advance(monad);
   }
 }
+
+class Seq[T, Item] : Iterable[T, Item] {
+   def first() : T;
+   def last() : T;
+}
