@@ -1,6 +1,7 @@
 // Extensive rigor test
 
 include "system.cp";
+include "option.cp";
 
 class Linked[T] {
   val cur : Ref[T];
@@ -62,6 +63,7 @@ class ListTest[T] : SeqTest[T, Linked[T]] {
   }
 
   def last() : Ref[T] { return back.deref().cur; }
+  def first() : Ref[T] { return back.deref().cur; }
   def head() : Ref[T] { return front.deref().cur; }
   def tail() : ListTest[T] { return ListTest[T](front.deref().next, back.deref(), size - 1); }
 }
@@ -105,6 +107,12 @@ class Map[A, B] : SeqTest[A, MapElem[A, B]] {
     return None[B]();
   }
 
+  def hasNext() : boolean {
+  }
+
+  def next() : A {
+  }
+
   def setValue(a : A, b : B) {
     while (lst.hasNext()) {
       val elm : MapElem[A, B] = lst.next();
@@ -120,8 +128,10 @@ class Map[A, B] : SeqTest[A, MapElem[A, B]] {
     }
   }
 
-  def last() : Ref[MapElem[A, B]] { lst.last(); }
-  def first() : Ref[MapElem[A, B]] { lst.first(); }
+  def index(i : int) : Ref[A] {  }
+
+  def last() : Ref[A] {  }
+  def first() : Ref[A] {  }
 }
 
 class Driver[T] {
