@@ -15,6 +15,7 @@ class Some[T] : Option[T] {
   def isFull() : boolean { return true; }
   def get() : T { return t; }
 }
+def some[M](t : M) : Some[M] { return Some[M](t); }
 
 class None[T] : Option[T] {
   def None() { }
@@ -22,4 +23,3 @@ class None[T] : Option[T] {
   def isFull() : boolean { return false; }
   def get() : T { exitError("None has no item"); }
 }
-

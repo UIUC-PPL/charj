@@ -13,8 +13,8 @@ class Fib : Chare  {
   def compute(parent_ : Option[Fib]) {
     parent = parent_;
     if (n > 1) {
-      async Fib(n-1).compute(Some[Fib](this));
-      async Fib(n-1).compute(Some[Fib](this));
+      async Fib(n-1).compute(some(this));
+      async Fib(n-1).compute(some(this));
     } else {
       counter = 1;
       finished(n);
