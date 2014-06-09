@@ -27,7 +27,7 @@ object Parse extends StandardTokenParsers with App {
   // assume flattened file names here
   val lstIncludes : ListBuffer[String] = ListBuffer[String]()
 
-  // recursively follow includes (circular includes will cause a problem)
+  // recursively follow includes
   def parseRecur(file : String) : Stmt = {
     val input = Source.fromFile(file).getLines.reduceLeft[String](_ + '\n' + _)
     val tokens = new lexical.Scanner(input)
