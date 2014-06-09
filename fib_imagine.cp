@@ -14,7 +14,7 @@ class Fib : Chare  {
 }
 
 def main() {
-  val result : int = Fib().compute(10);
+  val result : int = sync(Fib().compute(10));
 }
 
 
