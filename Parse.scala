@@ -75,11 +75,23 @@ object Parse extends StandardTokenParsers with App {
     checker.start()
 
     println("Static checker finished")
+    if (verbose) println("--- front end complete ---")
+  }
+
+  def backEnd(tree : Stmt) {
+    if (verbose) println("--- starting back end generation ---")
+    def printer(s : String) : Unit = println(s)
+    val gen = new CodeGen(tree, printer);
+    gen.start()
+    if (verbose) println("--- generation complete ---")
   }
 
   // run the front end of the compiler
   lstIncludes += args(0)
   frontEnd(parseRecur(args(0)))
+
+  // run the back end for code generationp
+  backEnd(BaseContext.base)
 
   def program = positioned(outerStmt.* ^^ { case stmts => StmtList(stmts) })
 
