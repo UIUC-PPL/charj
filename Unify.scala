@@ -27,6 +27,11 @@ case class Tok(t : String) extends Term {
   override def getName = t
   override def getTerms = List()
 }
+case class Thunker(terms : List[Term]) extends Term {
+  override def toString = "@anon" + "(" + terms.foldRight("")((x,y) => x + "->" + y) + ")"
+  override def getName = "@anon"
+  override def getTerms = terms
+}
 
 // @todo for future namespace support and resolution
 case class Namespace(n : String, t : Term) extends Term {

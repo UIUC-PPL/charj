@@ -18,7 +18,8 @@ object Parse extends StandardTokenParsers with App {
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
                          "{", "}", "[", "]", "(", ")", "$", "@", "%",
                          ":", ".", ",", ";", "&&", "||", "!", "^", "?",
-                         "<", "<=", ">", ">=", "+=", "-=", "#", "<>")
+                         "<", "<=", ">", ">=", "+=", "-=", "#", "<>",
+                         "->", "=>")
 
   // set verbosity to true for testing
   import BaseContext.verbose
@@ -177,15 +178,22 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case mutable ~ ident ~ typeStmt ~ expr => DeclStmt(mutable, ident, typeStmt, expr) }
   )
 
-  def typeStmt = positioned(
-    ":" ~ qualifiedIdent ~ generic.?
-    ^^ { case _ ~ qualIdent ~ generic => Type(
+  def typeAtom = positioned(
+    qualifiedIdent ~ generic.?
+    ^^ { case qualIdent ~ generic =>
       if (generic.isEmpty)
         Tok(qualIdent.reduce(_ + _))
       else
         Fun(qualIdent.reduce(_ + _), generic.get)
-    ) }
+    }
   )
+
+  def typeStmt : Parser[Type] = positioned(
+    ":" ~> typeAtomList
+    ^^ { case lst => Type(if (lst.length == 1) lst.head else Thunker(lst)) }
+  )
+
+  def typeAtomList : Parser[List[Term]] = mkList(typeAtom, "->")
 
   def ifStmt = positioned(
     "if" ~ "(" ~ expression ~ ")" ~ semiStmt ~ elseStmt.?

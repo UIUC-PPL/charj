@@ -28,3 +28,15 @@ def main() {
 //       total += n;
 //     }
 // }
+
+with lambdas:
+
+// def compute(n : int, fun : int => unit) : int {
+//     val total : int = 0;
+
+//     async Fib().compute(n-1, {n : int => total += n});
+//     async Fib().compute(n-2, {n : int => total += n});
+//     sync;
+//
+//     fun(total);
+// }
