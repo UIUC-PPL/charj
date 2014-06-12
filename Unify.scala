@@ -100,6 +100,7 @@ case class Unifier(mustUnify : Boolean) {
       case (Bound(n1), Tok(n2)) if (n1 == n2) => subs
       case (Tok(n1), Bound(n2)) if (n1 == n2) => subs
       case (Bound(n1), Bound(n2)) if (n1 != n2) => UnifySemanticError("unification fail: bound vars not identical")
+      case (Thunker(t1),Thunker(t2)) => unifyTerms(t1, t2, subs)
       case _ => UnifySemanticError("unification fail: terms don't match")
     }
   }

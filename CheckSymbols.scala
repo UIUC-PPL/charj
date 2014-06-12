@@ -178,6 +178,7 @@ object Checker {
       case MVar(t) => MVar(t)
       case Fun(n, terms) => Fun(n, terms.map{checkTerm(_, tree)})
       case Tok(t) => checkTermString(t, tree)
+      case Thunker(ts) => Thunker(ts.map{checkTerm(_, tree)})
       case _ => null
     }
   }
