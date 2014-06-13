@@ -39,6 +39,8 @@ class Test[T] {
       return "test";
     };
 
+    fun1( {(a : T) : string => return "test"; } );
+    fun1(m);
   } 
 
 }
