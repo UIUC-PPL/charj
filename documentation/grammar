@@ -73,6 +73,7 @@ opCall1 ::= "[" parameters? "]"
 mainExpr ::= funcCall |
              "async" expression |
              "sync" expression |
+             anonFunc |
              "true" | "false" | "null" |
              ident |
              "-" expression |
@@ -85,3 +86,4 @@ parameters ::= expression | expression "," parameters
 numericLit ::= [0-9]+[.0-9]*
 stringLit ::= "\""[a-zA-Z0-9_]"\""
 includeStmt ::= "include" stringLit ";"
+anonFunc ::= "{" "(" typedParamList ")" typeStmt? "=>" semiStmt* "}"
