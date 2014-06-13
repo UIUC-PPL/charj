@@ -40,7 +40,7 @@ case class DefStmt(name : String,
   override def getName() = pos + "-> def " + name  + "[isConstructor = " + isConstructor + "]"
 }
 case class DeclStmt(isMutable : Boolean, name : String, typ : Option[Type], expr : Option[Expression]) extends Stmt {
-  var sym : DeclSymbol = null
+  var sym : HasDeclType = null
   override def getName() = pos + "-> " + (if (isMutable) "var" else "val") + " " + name
 }
 case class StmtList(lst : List[Stmt]) extends Stmt {
@@ -92,6 +92,7 @@ case class GeqExpr(el : Expression, er : Expression) extends Expression // >=
 case class DotExpr(el : Expression, er : Expression) extends Expression // .
 case class NeqExpr(el : Expression, er : Expression) extends Expression // <>
 case class AopExpr(el : Expression, er : Expression, op : String) extends Expression // arbitrary operator
+case class DefExpr(d : DefStmt) extends Expression
 case class FunExpr(name : List[String], var generic : List[Term], param : Option[List[Expression]]) extends Expression
 case class NotExpr(el : Expression) extends Expression
 case class NegExpr(el : Expression) extends Expression

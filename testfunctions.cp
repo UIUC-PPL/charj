@@ -25,10 +25,20 @@ class Test[T] {
     return a(fun2);
   }
 
-  def xx() {
+  val mmm : int;
+
+
+
+  def xx() : string {
     val x : (T -> string) -> unit = fun1;
     val y : T -> string = fun2;
     fun1(y);
+    val t : T;
+    val m : T -> string = { (a : T) : string =>
+      val xxxxxxxx : int = 5;
+      return "test";
+    };
+
   } 
 
 }

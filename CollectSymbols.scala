@@ -139,22 +139,26 @@ class Collector(tree : Stmt) {
           //t.enclosingClass.sym.isAbstract = true
           //t.enclosingClass.isAbstract = true
         }
-        t.sym = addDecl(context, tree, null, name, tree.pos, mutable)
+        val ncon = newContext(context, tree, true)
+        if (!expr.isEmpty) traverseExpr(expr.get, t, ncon)
+        t.sym = addDecl(context, tree, ncon, name, tree.pos, mutable)
         if (!typ.isEmpty) traverseTree(typ.get, context)
       }
-      case t@ForStmt(decls, _, cont, stmt) => {
+      case t@ForStmt(decls, expr1, cont, stmt) => {
         val con = newContext(context, tree, true)
         if (enclosingClass != null)
           con.sym = enclosingClass.sym
         t.context = con
+        traverseExpr(expr1, t, con)
         traverseTree(decls, con)
         traverseTree(cont, con)
         traverseTree(stmt, con)
       }
-      case IfStmt(_, stmt1, stmt2) => {
+      case t@IfStmt(cond, stmt1, stmt2) => {
         val con = newContext(context, stmt1, true)
         if (enclosingClass != null)
           con.sym = enclosingClass.sym
+        traverseExpr(cond, t, context)
         traverseTree(stmt1, con)
         if (!stmt2.isEmpty) {
           val con2 = newContext(context, stmt2.get, true)
@@ -163,13 +167,35 @@ class Collector(tree : Stmt) {
           traverseTree(stmt2, con2)
         }
       }
-      case WhileStmt(_, stmt) => {
+      case t@WhileStmt(expr, stmt) => {
         val con = newContext(context, stmt, true)
         if (enclosingClass != null)
           con.sym = enclosingClass.sym
+        traverseExpr(expr, t, context)
         traverseTree(stmt, con)
       }
+      case t@ExprStmt(expr1) => {
+        traverseExpr(expr1, t, context)
+      }
+      case t@ReturnStmt(expr1) => {
+        if (!expr1.isEmpty) traverseExpr(expr1.get, t, context)
+      }
+      case t@AssignStmt(expr1,_,expr2) => {
+        traverseExpr(expr1, t, context)
+        traverseExpr(expr2, t, context)
+      }
       case _ => ;
+    }
+  }
+
+  def traverseExpr(expr : Expression, t : Stmt, context : Context) {
+    new PureExprVisitor(expr, t, exprFunVisit)
+
+    def exprFunVisit(expr : Expression, tree : Stmt) {
+      expr match {
+        case DefExpr(dstmt) => traverseTree(dstmt, context)
+        case _ => ;
+      }
     }
   }
 

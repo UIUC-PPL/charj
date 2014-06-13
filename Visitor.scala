@@ -1,6 +1,17 @@
 package CharjParser
 
 class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Unit) {
+  def visitExpressionForStmt(expr : Expression, t : Stmt) {
+    new PureExprVisitor(expr, t, exprFunVisit)
+  }
+
+  def exprFunVisit(expr : Expression, tree : Stmt) {
+    expr match {
+      case DefExpr(dstmt) => traverseTree(dstmt)
+      case _ => ;
+    }
+  }
+
   traverseTree(tree)
   var enclosingClass : ClassStmt = null
   var enclosingDef : DefStmt = null
@@ -51,24 +62,43 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         typ.enclosingDef = enclosingDef
         maybeVisit(t); maybeVisit(typ)
       }
-      case t@DeclStmt(_, _, typ, _) => {
+      case t@DeclStmt(_, _, typ, mex) => {
         if (!typ.isEmpty) maybeVisit(typ.get)
         maybeVisit(tree)
+        if (!mex.isEmpty) visitExpressionForStmt(mex.get, t);
       }
-      case t@IfStmt(_, stmt1, stmt2) => {
+      case t@IfStmt(cond, stmt1, stmt2) => {
         maybeVisit(tree)
         traverseTree(stmt1)
         if (!stmt2.isEmpty) traverseTree(stmt2.get)
+        visitExpressionForStmt(cond, t);
       }
-      case t@ForStmt(decls, _, cont, stmt) => {
+      case t@ForStmt(decls, expr1, cont, stmt) => {
         maybeVisit(tree)
         traverseTree(decls)
         traverseTree(cont)
         traverseTree(stmt)
+        visitExpressionForStmt(expr1, t);
       }
-      case t@WhileStmt(_, stmt) => {
+      case t@WhileStmt(expr1, stmt) => {
         maybeVisit(tree)
         traverseTree(stmt)
+        visitExpressionForStmt(expr1, t);
+      }
+      case t@ExprStmt(expr1) => {
+        maybeVisit(tree)
+        visitExpressionForStmt(expr1, t);
+      }
+      case t@ReturnStmt(expr1) => {
+        maybeVisit(tree)
+        if (!expr1.isEmpty) visitExpressionForStmt(expr1.get, t);
+      }
+      case t@EmptyStmt() => maybeVisit(tree)
+      case t@IncludeStmt(_) => maybeVisit(tree)
+      case t@AssignStmt(expr1,_,expr2) => {
+        maybeVisit(tree)
+        visitExpressionForStmt(expr1, t);
+        visitExpressionForStmt(expr2, t);
       }
       case _ => maybeVisit(tree)
     }
@@ -101,6 +131,14 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
     }
   }
 
+  def visit(expr : Expression, s : Stmt) {
+    new PureExprVisitor(expr, s, visit2)
+  }
+}
+
+class PureExprVisitor[U >: Expression](expr : Expression, s : Stmt, visit2 : (U, Stmt) => Unit) {
+  visit(expr, s);
+
   def visitBinary(l : Expression, r : Expression, s : Stmt, cur : Expression) = {
     visit(l, s)
     visit(r, s)
@@ -113,6 +151,7 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
       case t@NumLiteral(_) => visit2(t, s)
       case t@AsyncExpr(l) => {visit(l, s); visit2(t, s)}
       case t@SyncExpr(l) => {visit(l, s); visit2(t, s)}
+      case t@DefExpr(stmt) => { visit2(t, s) }
       case MulExpr(l, r) => visitBinary(l, r, s, expr)
       case DivExpr(l, r) => visitBinary(l, r, s, expr)
       case AddExpr(l, r) => visitBinary(l, r, s, expr)

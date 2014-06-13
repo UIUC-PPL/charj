@@ -159,6 +159,14 @@ object Checker {
           if (verbose) println("resolved to " + t.generic)
         }
       }
+      case t@DefExpr(stmt) => {
+        if (!stmt.nthunks.isEmpty) {
+          for (tp <- stmt.nthunks.get)
+            tp.typ.full = checkTerm(tp.typ.full, cls)
+          if (!stmt.ret.isEmpty)
+            stmt.ret.get.full = checkTerm(stmt.ret.get.full, cls)
+        }
+      }
       case _ => ;
     }
   }
@@ -419,6 +427,9 @@ object Checker {
       }
       case SyncExpr(sexpr) => {
         expr.sym = sexpr.sym
+      }
+      case t@DefExpr(stmt) => {
+        expr.sym = stmt.sym.declType
       }
       case NumLiteral(str) => {
         val theInt = tryConvertToInt(str)

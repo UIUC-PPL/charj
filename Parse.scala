@@ -259,10 +259,18 @@ object Parse extends StandardTokenParsers with App {
 
   def parameters = mkList(expression, ",")
 
+  def anonFunc = positioned(
+    "{" ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ "=>" ~ semiStmt.* ~  "}" ^^ {
+      case _ ~ _ ~ typedParamList ~ _ ~ typeStmt ~ _ ~ semi ~ _ =>
+        DefStmt("@afun", List(), typedParamList, typeStmt, StmtList(semi))
+    }
+  )
+
   def mainExpr : Parser[Expression] = positioned(
       funcCall
     | "async" ~> expression      ^^ { case expr   => AsyncExpr(expr) }
     | "sync"  ~> expression      ^^ { case expr   => SyncExpr(expr) }
+    | anonFunc                   ^^ { case expr   => DefExpr(expr) }
     | newExpr
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }
