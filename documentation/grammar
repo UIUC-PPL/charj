@@ -1,0 +1,87 @@
+GRAMMAR SPECIFICATION:
+
+Reserved words:
+class
+def
+val
+var
+if
+else
+true
+false
+for
+while
+return
+null
+include
+async
+sync
+wait
+new (reserved for future use)
+
+Reserved Delimiters (act as white space):
+"=", "+", "-", "*", "/", "==",
+"{", "}", "[", "]", "(", ")", "$", "@", "%",
+":", ".", ",", ";", "&&", "||", "!", "^", "?",
+"<", "<=", ">", ">=", "+=", "-=", "#", "<>",
+"->", "=>"
+
+program ::= outerStmt*
+outerStmt ::= classStmt | defStmt | includeStmt
+classStmt ::= "class" "#"? ident generic? typeStmt? "{" innerStmt* "}"
+ident ::= [a-zA-Z_]+[a-zA-Z_0-9]*
+generic ::= "[" identList "]"
+identList ::= ident | ident "," identList
+typeStmt ::= ":" typeAtomList
+typeAtomList ::= optTypeAtom | optTypeAtom "->" typeAtomList
+optTypeAtom ::= typeAtom | "(" typeAtomList ")"
+typeAtom ::= ident generic
+innerStmt ::= defStmt | declStmt
+defStmt ::= "def" funName generic? "(" typedParamList ")" typeStmt? "{" semiStmt* "}"
+funName ::= ident | "#" | "^" | "?"
+typedParamList ::= typedParam | typedParam "," typedParamList
+typedParam ::= ident typeStmt
+semiStmt ::= declStmt ";" |
+             assignStmt ";" |
+             expression ";" |
+             ifStmt |
+             forStmt |
+             whileStmt |
+             returnStmt |
+             "{" semiStmt* "}"
+declStmt ::= ("var" | "val") ident typeStmt? "=" expression
+assignStmt ::= ident ("=" | "+=" | "-=") expression
+ifStmt ::= if "(" expression ")" semiStmt elseStmt?
+elseStmt ::= "else" semiStmt
+forStmt ::= "for" "(" declStmtList ";" expression ";" assignStmtList ")" semiStmt
+declStmtList ::= declStmt | declStmt "," declStmtList
+assignStmtList ::= assignStmt | assignStmt "," assignStmtList
+whileStmt ::= "while" "(" expression ")" semiStmt
+returnStmt ::= "return" expression?
+expression ::= bOr
+bOr ::= bAnd ("||" bAnd)*
+bAnd ::= comp ("&&" comp)*
+comp ::= expr (("<>"|"<"|">"|"<="|"=="|">=") expr)*
+expr ::= term (("+"|"-") term)*
+term ::= opExpr (("*"|"/") opExpr)*
+opExpr ::= unaryExpr (("$"|"@"|"%") unaryExpr)*
+unaryExpr ::= unaryExprPost ("#"|"^"|"?")*
+unaryExprPost ::= ("#"|"^"|"?")? "."
+dot ::= opCall ("." opCall)*
+opCall ::= mainExpr opCall1*
+opCall1 ::= "[" parameters? "]"
+mainExpr ::= funcCall |
+             "async" expression |
+             "sync" expression |
+             "true" | "false" | "null" |
+             ident |
+             "-" expression |
+             numericLit |
+             stringLit |
+             "(" expression ")" |
+             "!" expression
+funcCall ::= ident generic? "(" parameters? ")"
+parameters ::= expression | expression "," parameters
+numericLit ::= [0-9]+[.0-9]*
+stringLit ::= "\""[a-zA-Z0-9_]"\""
+includeStmt ::= "include" stringLit ";"
