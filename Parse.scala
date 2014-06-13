@@ -188,12 +188,15 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
+  def optTypeAtom : Parser[Term] = typeAtom | "(" ~> typeAtomListP <~ ")"
+
   def typeStmt : Parser[Type] = positioned(
-    ":" ~> typeAtomList
-    ^^ { case lst => Type(if (lst.length == 1) lst.head else Thunker(lst)) }
+    ":" ~> typeAtomListP ^^ { case atom => Type(atom) }
   )
 
-  def typeAtomList : Parser[List[Term]] = mkList(typeAtom, "->")
+  def typeAtomListP : Parser[Term] =
+    typeAtomList ^^ { case lst => if (lst.length == 1) lst.head else Thunker(lst) }
+  def typeAtomList : Parser[List[Term]] = mkList(optTypeAtom, "->")
 
   def ifStmt = positioned(
     "if" ~ "(" ~ expression ~ ")" ~ semiStmt ~ elseStmt.?

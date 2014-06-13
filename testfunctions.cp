@@ -20,4 +20,14 @@ class Test[T] {
   def xxx() {
     fun1(fun2);
   }
+
+  def fun3(a : (T->string) -> (string -> T -> T)) : (string ->T ->T) {
+    return a(fun2);
+  }
+
+  def xx() {
+    val x : T -> string = fun2;
+    fun1(x);
+  } 
+
 }
