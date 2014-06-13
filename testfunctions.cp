@@ -9,7 +9,7 @@ class Test[T] {
     return m(a(x),5);
   }
 
-  def fun1(b : T -> string) {
+  def fun1(b : T -> string)  {
 
   }
 
@@ -26,8 +26,9 @@ class Test[T] {
   }
 
   def xx() {
-    val x : T -> string = fun2;
-    fun1(x);
+    val x : (T -> string) -> unit = fun1;
+    val y : T -> string = fun2;
+    fun1(y);
   } 
 
 }

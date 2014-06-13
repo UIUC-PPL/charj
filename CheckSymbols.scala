@@ -6,12 +6,8 @@ import scala.collection.mutable.{ArrayBuffer,ListBuffer}
 /*
  * Todos:
  * chare arrays, sections, etc.
- * syntax for marking entry methods
- * contig blocks of data for arrays
  * how to communicate with other languages (extern/etc.)
- * for statement static checking
- * multiple inheritance (syntax, semantics)
- *
+ * wait statements
  * 
  * Completed todos:
  * first-class functions
