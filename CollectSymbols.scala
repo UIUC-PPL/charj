@@ -10,8 +10,12 @@ object BasicTypes {
   val unitType = Bound("unit")
   val refType = Fun("Ref", List(MVar("T")))
 
-  def isBasic(t : Term) : Boolean = {
-    t == booleanType || t == intType || t == stringType || t == charType || t == unitType;
+  def isBasic(rt : ResolvedType) : Boolean = {
+    rt match {
+      case st@SingleType(_,_) => st.cs.t == booleanType || st.cs.t == intType || st.cs.t == stringType ||
+                                 st.cs.t == charType || st.cs.t == unitType;
+      case _ => false
+    }
   }
 }
 
@@ -110,7 +114,17 @@ class Collector(tree : Stmt) {
         }
         if (!nthunks.isEmpty) {
           for (param <- nthunks.get) {
-            param.decl = addDecl(con, tree, null, param.name, param.pos, false)
+            param.decl = param match {
+              case TypeParam(_,Type(th@Thunker(lst))) => {
+                val defSym = addDef(List(), con, tree, newContext(con, tree, true),
+                                    param.name, param.pos, false, lst.length)
+                param.defSym = defSym
+                defSym
+              }
+              case _ =>
+                addDecl(con, tree, null, param.name, param.pos, false)
+            }
+
             param.context = con
             traverseTree(param, con)
           }

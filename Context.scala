@@ -12,7 +12,7 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
   import scala.collection.mutable.{ListBuffer,ArrayBuffer}
   var sym : Symbol = null
   var lst : ListBuffer[(Symbol, Stmt, Context)] = ListBuffer()
-  var extensions : ArrayBuffer[BoundClassSymbol] = ArrayBuffer()
+  var extensions : ArrayBuffer[SingleType] = ArrayBuffer()
   val ordered = isOrdered
 
   def condSyms(sym1 : Symbol, sym2 : Symbol) : Boolean = {

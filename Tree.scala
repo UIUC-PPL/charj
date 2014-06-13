@@ -50,7 +50,7 @@ case class StmtList(lst : List[Stmt]) extends Stmt {
   override def getName() = pos + "-> block"
 }
 case class ExprStmt(expr : Expression) extends Stmt
-case class AssignStmt(lval : Expression, op : AssignOp, rval : Expression) extends Stmt with HasBoundClass
+case class AssignStmt(lval : Expression, op : AssignOp, rval : Expression) extends Stmt with HasResolvedType
 case class IfStmt(cond : Expression, expr1 : Stmt, expr2 : Option[Stmt]) extends Stmt
 case class ForStmt(decls : List[Stmt], expr1 : Expression, cont : List[Stmt], stmt : Stmt) extends Stmt {
   override def getName() = pos + "-> for"
@@ -63,16 +63,17 @@ case class ReturnStmt(fact : Option[Expression]) extends Stmt {
 }
 case class EmptyStmt() extends Stmt
 
-case class TypeParam(name : String, typ : Type) extends Stmt with HasBoundClass {
-  var decl : DeclSymbol = null
+case class TypeParam(name : String, typ : Type) extends Stmt with HasResolvedType {
+  var decl : Symbol = null
+  var defSym : DefSymbol = null
 }
 case class Type(var full : Term) extends Stmt {
   override def getName() = pos + "-> type " + full
 }
 
-trait HasBoundClass { var sym : BoundClassSymbol = null }
+trait HasResolvedType { var sym : ResolvedType = null }
 trait HasContext { var context : Context = null }
-abstract class Expression extends Positional with HasBoundClass with HasContext
+abstract class Expression extends Positional with HasResolvedType with HasContext
 
 case class AsyncExpr(e : Expression) extends Expression
 case class SyncExpr(e : Expression) extends Expression

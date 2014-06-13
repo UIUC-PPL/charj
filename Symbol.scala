@@ -1,21 +1,27 @@
 package CharjParser
 
 import scala.util.parsing.input.{Positional,Position}
+import scala.collection.mutable.{ListBuffer,ArrayBuffer}
 
 abstract class Symbol extends Positional {
   var isConstructor : Boolean = false
   val name : String
 }
 
-import scala.collection.mutable.ArrayBuffer
-case class BoundClassSymbol(cs : ClassSymbol, val bindings : List[(Term,Term)]) extends Symbol {
-  val name : String = ""
+trait ResolvedType {
   var isNull : Boolean = false
+  def getBindings() : List[(Term,Term)];
+}
+case class FunType(types : List[ResolvedType]) extends ResolvedType {
+  def getBindings() : List[(Term,Term)] = types.map(_.getBindings()).reduceLeft[List[(Term,Term)]](_ ++ _)
+}
+case class SingleType(cs : ClassSymbol, val bindings : List[(Term,Term)]) extends Symbol with ResolvedType {
+  def getBindings() : List[(Term,Term)] = bindings
+  val name : String = ""
   override def toString = { cs.toString + ", bds = " + bindings }
 }
 
 case class ClassSymbol(name : String, arity : Int) extends Symbol {
-  import scala.collection.mutable.ListBuffer
   var t : Term = null
   var isAbstract : Boolean = false
   var context : Context = new Context(None, false)
@@ -26,10 +32,14 @@ case class ClassSymbol(name : String, arity : Int) extends Symbol {
   override def toString = t.toString
 }
 
-case class DefSymbol(name : String, isAbstract : Boolean) extends Symbol {
-  var inTypes : List[BoundClassSymbol] = List()
+trait HasDeclType {
+  var declType : ResolvedType = null
+}
+
+case class DefSymbol(name : String, isAbstract : Boolean) extends Symbol with HasDeclType {
+  var inTypes : List[ResolvedType] = List()
   var term : List[Term] = List()
-  var retType : BoundClassSymbol = null
+  var retType : ResolvedType = null
   var isCons : Boolean = false
   var classCons : ClassStmt = null
   var arity : Int = -1
@@ -37,8 +47,7 @@ case class DefSymbol(name : String, isAbstract : Boolean) extends Symbol {
                           ", ret = " + retType + ", isConstructor = " + isConstructor
 }
 
-case class DeclSymbol(name : String, isMutable : Boolean) extends Symbol {
-  var declType : BoundClassSymbol = null
+case class DeclSymbol(name : String, isMutable : Boolean) extends Symbol with HasDeclType {
   override def toString = (if (isMutable) "var" else "val") + " \"" + name + "\""
 }
 
