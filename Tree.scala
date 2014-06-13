@@ -27,16 +27,13 @@ case class ClassStmt(name : String, isSystem : Boolean, var generic : List[Term]
   }
   override def getName() = pos + "-> class " + name + "[isAbstract = " + isAbstract + "]"
 }
-case class ChareStmt(name : String, lst : List[Stmt]) extends Stmt {
-  override def getName() = pos + "-> chare " + name
-}
 case class IncludeStmt(str : String) extends Stmt
-case class DefStmt(isEntry : Option[String],
-                   name : String,
+case class DefStmt(name : String,
                    var gens : List[Term],
                    nthunks : Option[List[TypeParam]],
                    ret : Option[Type],
                    stmts : Stmt) extends Stmt {
+  var isEntry : Boolean = false
   var isAbstract : Boolean = false
   var sym : DefSymbol = null
   var isConstructor : Boolean = false

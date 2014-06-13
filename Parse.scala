@@ -11,8 +11,8 @@ import scala.util.parsing.input.Positional
 import scala.collection.mutable.ListBuffer
 
 object Parse extends StandardTokenParsers with App {
-  lexical.reserved += ("class", "entry", "def", "val", "var",
-                       "chare", "mainchare", "charearray", "async", "sync",
+  lexical.reserved += ("class", "def", "val", "var",
+                       "async", "sync", "wait",
                        "if", "else", "true", "false", "new",
                        "for", "while", "return", "null", "include")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
@@ -98,7 +98,6 @@ object Parse extends StandardTokenParsers with App {
 
   def outerStmt = positioned(
       classStmt
-    | chareStmt
     | defStmt
     | includeStmt
   )
@@ -136,11 +135,6 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def chareStmt = positioned(
-    "chare" ~ ident ~ "{" ~ innerStmtList ~ "}"
-    ^^ { case _ ~ ident ~ _ ~ stmts ~ _ => ChareStmt(ident, stmts) }
-  )
-
   def semi = "{" ~ semiStmt.* ~ "}" ^^ { case _ ~ semi ~ _ => StmtList(semi) }
 
   def funName = (
@@ -155,9 +149,9 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def defStmt = positioned(
-    "entry".? ~ "def" ~ funName ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
-    ^^ { case isEntry ~ _ ~ ident ~ gen ~ _ ~ typedParamList ~ _ ~ typeStmt ~ semi =>
-      DefStmt(isEntry, ident, if (gen.isEmpty) List() else gen.get, typedParamList, typeStmt, semi)
+    "def" ~ funName ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
+    ^^ { case _ ~ ident ~ gen ~ _ ~ typedParamList ~ _ ~ typeStmt ~ semi =>
+      DefStmt(ident, if (gen.isEmpty) List() else gen.get, typedParamList, typeStmt, semi)
     }
   )
 

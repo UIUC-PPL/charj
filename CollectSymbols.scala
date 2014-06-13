@@ -78,7 +78,7 @@ class Collector(tree : Stmt) {
         traverseTree(t.lst, con)
         enclosingClass = null
       }
-      case t@DefStmt(_, name, _, nthunks, ret, lst) => {
+      case t@DefStmt(name, _, nthunks, ret, lst) => {
         val con = newContext(context, tree, true)
         val isAbstract = lst == EmptyStmt()
         t.isAbstract = isAbstract

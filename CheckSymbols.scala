@@ -84,7 +84,7 @@ object Checker {
 
   def abstractSignatures(tree : Stmt) {
     tree match {
-      case t@DefStmt(_,n,_,_,_,_) if (t.enclosingClass != null && t.isAbstract) => {
+      case t@DefStmt(n,_,_,_,_) if (t.enclosingClass != null && t.isAbstract) => {
         if (verbose) println(t.enclosingClass.name + ": add abstract def: " + n)
         t.enclosingClass.abstractDefs += t
       }
@@ -217,7 +217,7 @@ object Checker {
     var symname : String = ""
 
     tree match {
-      case t@DefStmt(_,name,_, maybeParams, hasRet, lst) => {
+      case t@DefStmt(name,_, maybeParams, hasRet, lst) => {
         symname = name
         params = if (maybeParams.isEmpty) List() else maybeParams.get.map{_.typ.full}
         context = lst
@@ -318,7 +318,7 @@ object Checker {
 
       def checkDef(tree : Stmt) {
         tree match {
-          case t@DefStmt(_,_,_,_,_,_) => {
+          case t@DefStmt(_,_,_,_,_) => {
             if (checkDefsMatch(abs, t, bindings)) foundMatch = true
           }
         }

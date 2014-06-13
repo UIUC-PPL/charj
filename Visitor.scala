@@ -23,11 +23,7 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         // unset enclosing class
         enclosingClass = null
       }
-      case t@ChareStmt(_, lst) => {
-        maybeVisit(tree)
-        traverseTree(lst)
-      }
-      case t@DefStmt(_, _, gens, nth, ret, lst) => {
+      case t@DefStmt(_, gens, nth, ret, lst) => {
         // set enclosing
         enclosingDef = t
         t.enclosingDef = t
