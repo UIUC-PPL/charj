@@ -29,7 +29,7 @@ def main() {
 //     }
 // }
 
-with lambdas:
+//with lambdas:
 
 // def compute(n : int, fun : int => unit) : int {
 //     val total : int = 0;

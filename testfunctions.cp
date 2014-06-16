@@ -34,6 +34,7 @@ class Test[T] {
     val t : T;
     val m : T -> string = { (a : T) : string =>
       val xxxxxxxx : int = 5;
+      xxxxxxxx + 10;
       return "test";
     };
 
@@ -41,6 +42,6 @@ class Test[T] {
     fun1(m);
 
     return m(t);
-  } 
+  }
 
 }
