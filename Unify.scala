@@ -73,13 +73,15 @@ case class Unifier(mustUnify : Boolean) {
 
   def isEqual(term1 : Term, term2 : Term, d : Exactness = Exact()) : Boolean = {
     ((term1, term2)) match {
-      case (MVar(t1), MVar(t2)) => true //if (t1 == t2) => t1 == t2
+      //case (MVar(t1), MVar(t2)) => true if (t1 == t2) => t1 == t2
+      case (MVar(t1), MVar(t2)) => t1 == t2
       case (MVar(_), Bound(_)) if (d == LHSVary()) => true
       case (Bound(_), MVar(_)) if (d == RHSVary()) => true
       case (Namespace(n1,t1), Namespace(n2,t2)) if (n1 == n2) => isEqual(t1,t2)
       case (MaybeNamespace(n2,t1), MaybeNamespace(n1,t2)) => isEqual(t1,t2)
       case (Fun(n1,t1), Fun(n2,t2)) if (n1 == n2) => isEqualTerms(t1,t2)
       case (Bound(n1), Bound(n2)) if (n1 == n2) => true
+      case (Thunker(t1), Thunker(t2)) => isEqualTerms(t1,t2)
       case _ => false
     }
   }
@@ -133,6 +135,7 @@ case class Unifier(mustUnify : Boolean) {
     (term, subs) match {
       case (_, List()) => term
       case (MVar(_), _) if (!subs.find(a => a._1 == term).isEmpty) => subst(subs.find(a => a._1 == term).get._2, subs)
+      case (Thunker(lst),subs) => Thunker(substAll(lst,subs))
       case (Fun(s1,terms), _) => Fun(s1,substAll(terms,subs))
       case (Namespace(n1, t1), _) => Namespace(n1, subst(t1, subs))
       case (MaybeNamespace(n1, t1), _) => MaybeNamespace(n1, subst(t1, subs))

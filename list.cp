@@ -1,6 +1,6 @@
 include "ref.cp";
 include "base.cp";
-include "iterable.cp";
+include "seq.cp";
 
 class Linked[T] {
   val item : Ref[T] = null;
@@ -12,7 +12,7 @@ class Linked[T] {
   }
 }
 
-class List[T] : Seq[T, Linked[T]] {
+class List[T] : Seq[T] {
   val front : Linked[T] = null;
   val back : Ref[T] = null;
   var size : int = 0;
@@ -60,21 +60,22 @@ class List[T] : Seq[T, Linked[T]] {
     return List[T](front.next, back, size-1);
   }
 
-  // Iterable interface
-  def newMonad() : Ref[Linked[T]] {
-    return ^front;
+  def foreach(fun : (T -> unit)) {
+    var cur : Linked[T] = front;
+    while (cur <> null) {
+      fun(cur.item#);
+      cur = cur.next;
+    }
   }
-  def atEnd(i : Ref[Linked[T]]) : boolean {
-    return i == null;
-  }
-  def getCurrent(i : Ref[Linked[T]]) : T {
-    return (i#).item#;
-  }
-  def advance(i : Ref[Linked[T]]) {
-    i.t = (i#).next;
-  }
-  def iterator() : Iterator[T, Linked[T]] {
-    return Iterator[T,Linked[T]](this);
+
+  def map[M](fun : (T -> M)) : Seq[M] {
+    var newLst : List[M] = List[M]();
+    var cur : Linked[T] = front;
+    while (cur <> null) {
+      newLst.push(fun(cur.item#));
+      cur = cur.next;
+    }
+    return newLst;
   }
 }
-def list[M](t : M) : List[M] { return List[M](t); }
+def list[X](t : X) : List[X] { return List[X](t); }

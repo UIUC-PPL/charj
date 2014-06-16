@@ -17,6 +17,7 @@ include
 async
 sync
 wait
+where
 new (reserved for future use)
 
 Reserved Delimiters (act as white space):

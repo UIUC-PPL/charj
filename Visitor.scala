@@ -67,7 +67,11 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         maybeVisit(t); maybeVisit(typ)
       }
       case t@DeclStmt(_, _, typ, mex) => {
-        if (!typ.isEmpty) maybeVisit(typ.get)
+        t.enclosingDef = getEnclosingDef()
+        if (!typ.isEmpty) {
+          typ.get.enclosingDef = getEnclosingDef()
+          maybeVisit(typ.get)
+        }
         maybeVisit(tree)
         if (!mex.isEmpty) visitExpressionForStmt(mex.get, t);
       }

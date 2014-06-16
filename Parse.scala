@@ -12,7 +12,7 @@ import scala.collection.mutable.ListBuffer
 
 object Parse extends StandardTokenParsers with App {
   lexical.reserved += ("class", "def", "val", "var",
-                       "async", "sync", "wait",
+                       "async", "sync", "wait", "where",
                        "if", "else", "true", "false", "new",
                        "for", "while", "return", "null", "include")
   lexical.delimiters += ("=", "+", "-", "*", "/", "==",
@@ -220,7 +220,7 @@ object Parse extends StandardTokenParsers with App {
     | "-=" ^^^ MEqual()
   )
   def assignStmt = positioned(
-    qualifiedIdent ~ assignOp ~ expression ^^ { case id ~ op ~ expr => AssignStmt(StrExpr(id), op, expr) }
+    expression ~ assignOp ~ expression ^^ { case expr1 ~ op ~ expr2 => AssignStmt(expr1, op, expr2) }
   )
 
   def elseStmt = "else" ~> semiStmt

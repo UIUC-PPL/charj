@@ -18,25 +18,29 @@ object ClassEquality {
 
   // d is which sides we can move up in the class hierarchy (one side
   // might be allowed to be specialized or not)
-  def equal(l : ResolvedType, r : ResolvedType, d : Direction = Both()) : Boolean = {
+  def equal(l : ResolvedType, r : ResolvedType,
+            lbinds : List[(Term,Term)] = List(),
+            rbinds : List[(Term,Term)] = List(),
+            d : Direction = Both()) : Boolean = {
     (l,r) match {
       case (rt1@FunType(_),(rt2@FunType(_))) => {
         if (rt1.types.length != rt2.types.length) false
         else {
           for ((t1,t2) <- (rt1.types,rt2.types).zipped.toList)
-            if (!equal(t1,t2,d)) return false
+            if (!equal(t1,t2,lbinds,rbinds,d)) return false
           true
         }
       }
-      case (st1@SingleType(_,_),st2@SingleType(_,_)) => equalSingle(st1,st2,d)
+      case (st1@SingleType(_,_),st2@SingleType(_,_)) => equalSingle(st1,st2,lbinds,rbinds,d)
       case _ => false
     }
-
   }
 
-  def equalSingle(l : SingleType, r : SingleType, d : Direction = Both()) : Boolean = {
-    val l1 = Unifier(true).subst(l.cs.t, l.bindings)
-    val r1 = Unifier(true).subst(r.cs.t, r.bindings)
+  def equalSingle(l : SingleType, r : SingleType,
+                  lbinds : List[(Term,Term)], rbinds : List[(Term,Term)],
+                  d : Direction = Both()) : Boolean = {
+    val l1 = Unifier(true).subst(l.cs.t, l.bindings ++ lbinds)
+    val r1 = Unifier(true).subst(r.cs.t, r.bindings ++ rbinds)
     if (verbose) println("check class equality: l1 = " + l1 + ", r1 = " + r1)
     if (!Unifier(false).isEqual(l1, r1)) {
       val lm1 = maybeResolveSingleClass(Type(l1), null)
@@ -46,12 +50,12 @@ object ClassEquality {
         if (lm1.get.cs.level > rm1.get.cs.level && (d == LHS() || d == Both())) {
           if (verbose) println("l.level = " + lm1.get.cs.level + ", r.level = " + rm1.get.cs.level)
           val newl1 = bindParentClass(lm1.get)
-          return equalSingle(newl1, r, d)
+          return equalSingle(newl1,r,lbinds,rbinds,d)
         } else if (lm1.get.cs.level < rm1.get.cs.level && (d == RHS() || d == Both())) {
           if (verbose) println("l.cs = " + lm1.get.cs + ", l.cs.level = " + lm1.get.cs.level +
                                ", r.level = " + rm1.get.cs.level)
           val newr1 = bindParentClass(rm1.get)
-          return equalSingle(l, newr1, d)
+          return equalSingle(l,newr1,lbinds,rbinds,d)
         } else false
       } else false
     } else true

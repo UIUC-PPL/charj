@@ -200,7 +200,7 @@ object Checker {
       if (verbose) println("checkTermString: both class and def and non-null")
     }
 
-    may = maybeResolveSingleClass(Type(Tok(clsName + "_" + defName + "_" + s)), tree)
+    may = maybeResolveSingleClass(Type(Tok("fungen_" + defName + "_" + s)), tree)
 
     if (may.isEmpty) {
       if (tree.enclosingClass != null)
@@ -402,7 +402,7 @@ object Checker {
   def determineExprType(expr : Expression, cls : Stmt) {
     expr match {
       case FunExpr(name, gens, param) => {
-        if (verbose) println("determing type for FunExpr: " + name)
+        if (verbose) println("determining type for FunExpr: " + name)
         val exprs = if (param.isEmpty) List() else param.get
         val types : List[ResolvedType] = exprs.map(_.sym)
         //val (sym, term, con) = findIdentType(cls, null, cls.context, name.dropRight(1), null)
@@ -415,8 +415,9 @@ object Checker {
 
         val (nt, ncon) = findNew(sym2, sym2.getBindings() ++ prevBindings)
 
-        val bcs = maybeResolveClass(Type(nt), null)
-        expr.sym = if (bcs.isEmpty) sym2 else bcs.get
+        if (verbose) println("FunExpr: found function type: " + sym2 + ", nt = " + nt)
+
+        expr.sym = resolveAnySymbol(Type(nt), null)
         expr.context = ncon
       }
       case StrLiteral(str) => {
@@ -444,12 +445,12 @@ object Checker {
         if (verbose) println("strexpr push over: " + expr.sym)
         val (sym2,_,_) = findIdentType(cls, null, con, lst, sym)
         val (nt, ncon) = findNew(sym2, sym2.getBindings())
-        val bcs = maybeResolveClass(Type(nt), null)
+        val sym3 = resolveAnySymbol(Type(nt), null)
 
         if (verbose) println("new term from strexpr = " + nt)
-        if (verbose) println("check type of StrExpr: " + bcs)
+        if (verbose) println("check type of StrExpr: " + sym3)
 
-        expr.sym = if (bcs.isEmpty) sym2 else bcs.get
+        expr.sym = sym3
         expr.context = ncon
       }
       case True() | False() => expr.sym = resolveClassType(Type(booleanType), cls)
@@ -458,6 +459,7 @@ object Checker {
           SemanticError("should be resolved to type" + l, l.pos)
         } else {
           if (verbose) println("dotexpr lhs: resolved to type: " + l.sym)
+          if (verbose) println("dotexpr rhs: resolved to type: " + r.sym)
 
           // this is tricky: the visitor will visit the node twice,
           // once before traversing the right, and once after
@@ -539,7 +541,7 @@ object Checker {
 
   def findFunType(cls : Stmt, methodName : String, context : Context, lst : List[ResolvedType],
                   gens : List[Term], bindings : List[(Term,Term)]) : (ResolvedType, Term, Context) = {
-    if (verbose) println("trying to resolve function " + methodName + " bindings = " + bindings)
+    if (verbose) println("trying to resolve function " + methodName + " bindings = " + bindings + " context = " + context)
 
     var function_bindings : List[(Term, Term)] = List()
     var retType : ResolvedType = null
@@ -547,20 +549,18 @@ object Checker {
 
     //function to check if input parameters match defined types
     def compareTerms(zipped : List[(ResolvedType,ResolvedType)],
-                     bindings : List[(Term,Term)]) : Boolean = {
+                     lbinds : List[(Term,Term)],
+                     rbinds : List[(Term,Term)]) : Boolean = {
       var isMatching = true
       for ((t1, t2) <- zipped) {
-        if (verbose) println("before: t1 = " + t1 + ", t2 = " + t2)
+        if (verbose) println("compareTerms: before: t1 = " + t1 + ", t2 = " + t2 +
+                             ", lbinds = " + lbinds + ", rbinds = " + rbinds)
         val u = Unifier(false)
-        val sub1 = u.subst(mapToTerm(t1), t1.getBindings() ++ bindings)
-        val sub2 = u.subst(mapToTerm(t2), t2.getBindings())
+        val sub1 = u.subst(mapToTerm(t1), t1.getBindings() ++ lbinds)
+        val sub2 = u.subst(mapToTerm(t2), t2.getBindings() ++ rbinds)
         if (t2.isNull && (sub1.isInstanceOf[Fun] || sub1.isInstanceOf[Thunker])) isMatching = true
         else {
-          val newT1 = t1 match {
-            case st@SingleType(_,_) => SingleType(st.cs, st.bindings ++ bindings)
-            case ft@FunType(_) => ft
-          }
-          if (!ClassEquality.equal(newT1, t2, ClassEquality.RHS())) isMatching = false
+          if (!ClassEquality.equal(t1, t2, lbinds, rbinds, ClassEquality.RHS())) isMatching = false
         }
         if (verbose) println("after: t1 = " + sub1 + ", t2 = " + sub2)
         if (verbose) println("check if terms are equal: " + isMatching)
@@ -581,7 +581,7 @@ object Checker {
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
             // if the class constructor being called is abstract this is invalid
             if (t.classCons.sym.isAbstract) SemanticError("can not instantiate abstract class", cls.pos);
-            function_bindings = Unifier(true).unifyTerm(Fun(name, gens), t.classCons.getType().full, List())
+            function_bindings = Unifier(true).unifyTerm(t.classCons.getType().full, Fun(name, gens), List())
             if (verbose) println("constructor bindings = " + function_bindings)
           }
 
@@ -602,12 +602,12 @@ object Checker {
             val t1 : Term = Fun(methodName, compGens)
             val t2 : Term = Fun(methodName, t.term)
             if (verbose) println("t1 term = " + t1 + ", t2 term = " + t2)
-            function_bindings = Unifier(true).unifyTerm(t1, t2, List());
+            function_bindings = Unifier(true).unifyTerm(t2,t1,List());
             if (verbose) println("generic function inst bindings = " + function_bindings)
           }
 
           val toComp = (t.inTypes,lst).zipped.toList
-          var isMatching = compareTerms(toComp, function_bindings ++ bindings)
+          var isMatching = compareTerms(toComp, function_bindings ++ bindings, List())
           if (isMatching) retType = t.retType
           isMatching
         } else false
@@ -618,7 +618,7 @@ object Checker {
         t.declType match {
           case FunType(types) if (types.length - 1 == lst.length) => {
             val toComp = (lst,types.dropRight(1)).zipped.toList
-            isMatching = compareTerms(toComp, function_bindings ++ bindings)
+            isMatching = compareTerms(toComp, function_bindings ++ bindings, List())
             if (isMatching) retType = types.last
           }
           case _ => isMatching = false
@@ -631,7 +631,10 @@ object Checker {
     if (sym.isEmpty)
       SemanticError("def " + methodName + ", in = " + lst + ", unknown, searched context: " + context, cls.pos)
 
-    val (nt, ncon) = findNew(retType, function_bindings)
+    println("findfunType: resolved context bindings: " + sym.get._2)
+
+    // (sym.get._2): propagate the bindings from a subtype when finding the new type
+    val (nt, ncon) = findNew(retType, function_bindings ++ bindings ++ sym.get._2)
 
     if (isConstructor) {
       // it must be a proper def in this case (not a decl bound to a func)
@@ -642,11 +645,11 @@ object Checker {
 
     if (verbose) println("resolved def rettype to: " + retType + ", new term = " + nt)
 
-    val bcs = maybeResolveClass(Type(nt), null)
-    if (bcs.isEmpty)
-      (retType, nt, ncon)
-    else
-      (bcs.get, nt, ncon)
+    val sym3 = resolveAnySymbol(Type(nt), null)
+
+    if (verbose) println("resolved final type to: " + sym3)
+
+    (sym3, nt, ncon)
   }
 
   def mapToTerm(rt : ResolvedType) : Term = {
@@ -697,24 +700,23 @@ object Checker {
     if (verbose) println("findDeclType: d.declType.bindings = " + d.declType.getBindings() + ", sym.get._2 = " + sym.get._2 + ", bindings = " + bindings)
     if (verbose) println("findDeclType: nt = " + nt)
 
-    val bcs = maybeResolveClass(Type(nt), null)
-
-    if (bcs.isEmpty)
-      (d.declType, nt, ncon)
-    else
-      (bcs.get, nt, ncon)
+    val sym3 = resolveAnySymbol(Type(nt), null)
+    (sym3, nt, ncon)
   }
 
-  def maybeResolveClass(t : Type, tree : Stmt) : Option[ResolvedType] = {
+  def resolveAnySymbol(t : Type, tree : Stmt) : ResolvedType = {
     t.full match {
-      case Thunker(terms) => {
-        val mapped = terms.map{t : Term => maybeResolveClass(Type(t), tree)}
-        if (mapped.find{_.isEmpty} == None) {
-          val mapped2 = mapped.map{_.get}
-          Some(FunType(mapped2))
-        } else None
+      case Thunker(terms) => FunType(terms.map{t : Term => resolveAnySymbol(Type(t), tree)})
+      case t@MVar(_) => {
+        val cs = ClassSymbol("mvar", 0)
+        cs.t = t
+        SingleType(cs, List())
       }
-      case _ => maybeResolveSingleClass(t, tree)
+      case _ => {
+        val opt = maybeResolveSingleClass(t, tree)
+        if (opt.isEmpty) SemanticError("could not resolve type: " + t, tree.pos)
+        opt.get
+      }
     }
   }
 
@@ -741,12 +743,7 @@ object Checker {
   }
 
   def resolveClassType(t : Type, tree : Stmt = null) : ResolvedType = {
-    val ret = maybeResolveClass(t, tree)
-    if (ret.isEmpty) {
-      SemanticError("could not resolve type " + t, t.pos)
-      null
-    } else
-      ret.get
+    resolveAnySymbol(t, tree)
   }
 
   def resolveSingleClassType(t : Type, tree : Stmt = null) : SingleType = {

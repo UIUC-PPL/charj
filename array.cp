@@ -1,6 +1,6 @@
 include "ref.cp";
 include "base.cp";
-include "iterable.cp";
+include "seq.cp";
 
 class ArrayCell {
   val cur : int;
@@ -16,7 +16,7 @@ class BLOCK[T] {
   def [](index : int) : T { }
 }
 
-class Array[T] : Seq[T, ArrayCell] {
+class Array[T] : Seq[T] {
   val block : BLOCK[T];
   val size : int;
 
@@ -32,21 +32,17 @@ class Array[T] : Seq[T, ArrayCell] {
   def first() : T { return index(0); }
   def last() : T { return index(size-1); }
 
-  // Iterable interface
-  def newMonad() : Ref[ArrayCell] {
-    return ^ArrayCell(0);
+  def foreach(fun : (T -> unit)) {
+    for (val i : int = 0; i < size; i += 1)
+      fun(block[i]);
   }
-  def atEnd(i : Ref[ArrayCell]) : boolean {
-    return (i#).cur == size-1;
-  }
-  def getCurrent(i : Ref[ArrayCell]) : T {
-    return index((i#).cur);
-  }
-  def advance(i : Ref[ArrayCell]) {
-    i.t = ArrayCell((i#).cur+1);
-  }
-  def iterator() : Iterator[T, ArrayCell] {
-    return Iterator[T,ArrayCell](this);
+
+  def map[M](fun : (T -> M)) : Seq[M] {
+    var newArr : Array[M] = Array[M](size);
+    for (val i : int = 0; i < size; i += 1) {
+      newArr[i] = fun(block[i]);
+    }
+    return newArr;
   }
 }
 
@@ -60,8 +56,7 @@ class ArrayCell2 {
   }
 }
 
-
-class Array2[T] : Seq[T, ArrayCell2] {
+class Array2[T] : Seq[T] {
   val block : BLOCK[T];
   val sz1 : int;
   val sz2 : int;
@@ -79,23 +74,17 @@ class Array2[T] : Seq[T, ArrayCell2] {
   def first() : T { return index(0,0); }
   def last() : T { return index(sz1-1,sz2-1); }
 
-  // Iterable interface
-  def newMonad() : Ref[ArrayCell2] {
-    return ^ArrayCell2(0,0);
+  def foreach(fun : (T -> unit)) {
+    for (val i : int = 0; i < sz1; i += 1)
+      for (val j : int = 0; j < sz2; j += 1)
+        fun(this[i,j]);
   }
-  def atEnd(i : Ref[ArrayCell2]) : boolean {
-    return (i#).cur1 == sz1-1 && (i#).cur2 == sz2-1;
-  }
-  def getCurrent(i : Ref[ArrayCell2]) : T {
-    return index((i#).cur1,(i#).cur2);
-  }
-  def advance(i : Ref[ArrayCell2]) {
-    if ((i#).cur2 <> sz2-1)
-      i.t = ArrayCell2((i#).cur1,(i#).cur2+1);
-    else
-      i.t = ArrayCell2((i#).cur1+1,(i#).cur2);
-  }
-  def iterator() : Iterator[T, ArrayCell2] {
-    return Iterator[T,ArrayCell2](this);
+
+  def map[M](fun : (T -> M)) : Seq[M] {
+    var newArr : Array2[M] = Array2[M](sz1,sz2);
+    for (val i : int = 0; i < sz1; i += 1)
+      for (val j : int = 0; j < sz2; j += 1)
+        newArr[i,j] = fun(this[i,j]);
+    return newArr;
   }
 }

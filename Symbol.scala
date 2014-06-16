@@ -13,13 +13,18 @@ trait ResolvedType {
   def getBindings() : List[(Term,Term)];
 }
 case class FunType(types : List[ResolvedType]) extends ResolvedType {
-  def getBindings() : List[(Term,Term)] = types.map(_.getBindings()).reduceLeft[List[(Term,Term)]](_ ++ _)
+  var bindings : List[(Term,Term)] = List()
+  def getBindings() : List[(Term,Term)] = types.map(_.getBindings()).reduceLeft[List[(Term,Term)]](_ ++ _) ++ bindings
 }
 case class SingleType(cs : ClassSymbol, val bindings : List[(Term,Term)]) extends Symbol with ResolvedType {
   def getBindings() : List[(Term,Term)] = bindings
   val name : String = ""
   override def toString = { cs.toString + ", bds = " + bindings }
 }
+// case class TermType(t : Term, val bindings : List[(Term,Term)]) extends Symbol with ResolvedType {
+//   def getBindings() : List[(Term,Term)] = bindings
+//   override def toString = { t + ", bds = " + bindings }
+// }
 
 case class ClassSymbol(name : String, arity : Int) extends Symbol {
   var t : Term = null

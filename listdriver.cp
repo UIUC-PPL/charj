@@ -21,10 +21,14 @@ def main(args : Array[string]) {
   val mmm : Ref[Test[int]] = ^Test[int]();
   val nnn : int = (mmm#)[3];
 
-  val iter : Iterator[Ref[int], Linked[Ref[int]]] = lst.iterator();
-  while (iter.hasNext()) {
-    val x : int = iter.current()#;
-  }
+  lst.foreach({ (r : Ref[int]) =>
+    val x : int = r#;
+    x + 10;
+  });
+
+  val lstx : List[int] = lst.map[int]({ (x : Ref[int]) : int =>
+    return x#;
+  });
 
   for (val i : int = 0; i < 10; i += 1) {
 

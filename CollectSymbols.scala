@@ -46,17 +46,16 @@ class Collector(tree : Stmt) {
     tree.context = context
     tree match {
       case StmtList(lst) => traverseTree(lst, context)
-      case t@ClassStmt(name, _, generic, parent, lst) => {
-        val arity = generic.size
+      case t@ClassStmt(name, _, _, parent, lst) => {
+        val arity = t.generic.size
         val con = newContext(context, tree, false)
-        t.generic = generic.map{ gen => {
+        t.generic = t.generic.map{ gen => {
           val newCon = new Context(None, false)
           val newGen = MVar(name + "_" + gen.asInstanceOf[MVar].t)
           val sym = addClass(con, newGen, newCon, newGen.asInstanceOf[MVar].t, 0, gen.pos, List(), false)
           con.lst += ((sym, tree, newCon))
           newGen
         }}
-        // do not use generic past this point
         t.sym = addClass(context, tree, con, name, arity, tree.pos, t.generic, true)
         t.sym.stmt = t
         t.sym.context = con
@@ -66,7 +65,7 @@ class Collector(tree : Stmt) {
 
         // add in a "this" decl for type checking
         val thisDecl = DeclStmt(false, "this",
-                                Some(Type(if (generic.isEmpty) Tok(name) else Fun(name, generic))),
+                                Some(Type(if (t.generic.isEmpty) Tok(name) else Fun(name, t.generic))),
                                 Some(Null())
                               )
         thisDecl.pos = t.pos
@@ -90,7 +89,7 @@ class Collector(tree : Stmt) {
 
         t.gens = t.gens.map{gen => {
           val newCon = new Context(None, false)
-          val newGen = MVar(ecn + "_" + edn + "_" + gen.asInstanceOf[Tok].t)
+          val newGen = MVar("fungen_" + edn + "_" + gen.asInstanceOf[Tok].t)
           val sym = addClass(con, newGen, newCon, newGen.asInstanceOf[MVar].t, 0, gen.pos, List(), false)
           con.lst += ((sym, tree, newCon))
           newGen
