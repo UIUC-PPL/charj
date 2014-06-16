@@ -1,5 +1,7 @@
 package CharjParser
 
+import scala.collection.mutable.Stack
+
 class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Unit) {
   def visitExpressionForStmt(expr : Expression, t : Stmt) {
     new PureExprVisitor(expr, t, exprFunVisit)
@@ -12,13 +14,15 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
     }
   }
 
-  traverseTree(tree)
   var enclosingClass : ClassStmt = null
-  var enclosingDef : DefStmt = null
+  var defStack : Stack[DefStmt] = new Stack[DefStmt]()
+  def getEnclosingDef() : DefStmt = if (defStack.isEmpty) null else defStack.top
+
+  traverseTree(tree)
 
   def traverseTree(tree : Stmt) {
     tree.enclosingClass = enclosingClass
-    tree.enclosingDef = enclosingDef
+    tree.enclosingDef = getEnclosingDef()
 
     tree match {
       case StmtList(lst) => traverseTree(lst)
@@ -35,10 +39,10 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         enclosingClass = null
       }
       case t@DefStmt(_, gens, nth, ret, lst) => {
-        // set enclosing
-        enclosingDef = t
-        t.enclosingDef = t
-        tree.enclosingDef = t
+        // push enclosing def context
+        defStack.push(t)
+        t.enclosingDef = getEnclosingDef()
+        tree.enclosingDef = getEnclosingDef()
 
         maybeVisit(tree)
 
@@ -47,19 +51,19 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         }
 
         if (!ret.isEmpty) {
-          ret.get.enclosingDef = enclosingDef
+          ret.get.enclosingDef = getEnclosingDef()
           ret.get.enclosingClass = enclosingClass
           maybeVisit(ret.get)
         }
 
         traverseTree(lst)
 
-        // set enclosing
-        enclosingDef = null
+        // pop enclosing def context
+        defStack.pop()
       }
       case t@TypeParam(_, typ) => {
-        t.enclosingDef = enclosingDef
-        typ.enclosingDef = enclosingDef
+        t.enclosingDef = getEnclosingDef()
+        typ.enclosingDef = getEnclosingDef()
         maybeVisit(t); maybeVisit(typ)
       }
       case t@DeclStmt(_, _, typ, mex) => {

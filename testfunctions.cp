@@ -27,8 +27,6 @@ class Test[T] {
 
   val mmm : int;
 
-
-
   def xx() : string {
     val x : (T -> string) -> unit = fun1;
     val y : T -> string = fun2;
@@ -41,6 +39,8 @@ class Test[T] {
 
     fun1( {(a : T) : string => return "test"; } );
     fun1(m);
+
+    return m(t);
   } 
 
 }

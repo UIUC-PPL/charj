@@ -542,13 +542,40 @@ object Checker {
     if (verbose) println("trying to resolve function " + methodName + " bindings = " + bindings)
 
     var function_bindings : List[(Term, Term)] = List()
+    var retType : ResolvedType = null
+    var isConstructor : Boolean = false
+
+    //function to check if input parameters match defined types
+    def compareTerms(zipped : List[(ResolvedType,ResolvedType)],
+                     bindings : List[(Term,Term)]) : Boolean = {
+      var isMatching = true
+      for ((t1, t2) <- zipped) {
+        if (verbose) println("before: t1 = " + t1 + ", t2 = " + t2)
+        val u = Unifier(false)
+        val sub1 = u.subst(mapToTerm(t1), t1.getBindings() ++ bindings)
+        val sub2 = u.subst(mapToTerm(t2), t2.getBindings())
+        if (t2.isNull && (sub1.isInstanceOf[Fun] || sub1.isInstanceOf[Thunker])) isMatching = true
+        else {
+          val newT1 = t1 match {
+            case st@SingleType(_,_) => SingleType(st.cs, st.bindings ++ bindings)
+            case ft@FunType(_) => ft
+          }
+          if (!ClassEquality.equal(newT1, t2, ClassEquality.RHS())) isMatching = false
+        }
+        if (verbose) println("after: t1 = " + sub1 + ", t2 = " + sub2)
+        if (verbose) println("check if terms are equal: " + isMatching)
+      }
+      isMatching
+    }
 
     val sym = context.resolve{a : (Symbol,Context) => a._1 match {
       case t@DefSymbol(name, _) => {
         if (name == methodName && t.inTypes.size == lst.size) {
+          if (verbose) println("findFunType: trying to match DefSymbol(" + name + ")" + " type: " + t.declType)
           // reset function bindings for this possibility
           function_bindings = List()
 
+          if (t.isCons) isConstructor = true
           if (t.isCons && t.classCons.generic != List()) {
             if (verbose) println("\t is constructor def: abstract = " + t.classCons.sym)
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
@@ -580,25 +607,23 @@ object Checker {
           }
 
           val toComp = (t.inTypes,lst).zipped.toList
-          var isMatching = true
-          for ((t1, t2) <- toComp) {
-            if (verbose) println("before: t1 = " + t1 + ", t2 = " + t2)
-            val u = Unifier(false)
-            val sub1 = u.subst(mapToTerm(t1), t1.getBindings() ++ function_bindings ++ bindings)
-            val sub2 = u.subst(mapToTerm(t2), t2.getBindings())
-            if (t2.isNull && (sub1.isInstanceOf[Fun] || sub1.isInstanceOf[Thunker])) isMatching = true
-            else {
-              val newT1 = t1 match {
-                case st@SingleType(_,_) => SingleType(st.cs, st.bindings ++ function_bindings ++ bindings)
-                case ft@FunType(_) => ft
-              }
-              if (!ClassEquality.equal(newT1, t2, ClassEquality.RHS())) isMatching = false
-            }
-            if (verbose) println("after: t1 = " + sub1 + ", t2 = " + sub2)
-            if (verbose) println("check if terms are equal: " + isMatching)
-          }
+          var isMatching = compareTerms(toComp, function_bindings ++ bindings)
+          if (isMatching) retType = t.retType
           isMatching
         } else false
+      }
+      case t@DeclSymbol(name, _) if (name == methodName) => {
+        if (verbose) println("findFunType: trying to match DeclSymbol(" + name + ")" + " type: " + t.declType)
+        var isMatching = false
+        t.declType match {
+          case FunType(types) if (types.length - 1 == lst.length) => {
+            val toComp = (lst,types.dropRight(1)).zipped.toList
+            isMatching = compareTerms(toComp, function_bindings ++ bindings)
+            if (isMatching) retType = types.last
+          }
+          case _ => isMatching = false
+        }
+        isMatching
       }
       case _ => false
     }}
@@ -606,20 +631,20 @@ object Checker {
     if (sym.isEmpty)
       SemanticError("def " + methodName + ", in = " + lst + ", unknown, searched context: " + context, cls.pos)
 
-    val d = sym.get._1.asInstanceOf[DefSymbol]
+    val (nt, ncon) = findNew(retType, function_bindings)
 
-    val (nt, ncon) = findNew(d.retType, function_bindings)
-
-    if (d.isCons) {
+    if (isConstructor) {
+      // it must be a proper def in this case (not a decl bound to a func)
+      val d = sym.get._1.asInstanceOf[DefSymbol]
       // unify with class decl to ensure return type of constructor has equal arity
       Unifier(true).unifyTerm(d.classCons.sym.t, nt, List())
     }
 
-    if (verbose) println("resolved def rettype to: " + d.retType + ", new term = " + nt)
+    if (verbose) println("resolved def rettype to: " + retType + ", new term = " + nt)
 
     val bcs = maybeResolveClass(Type(nt), null)
     if (bcs.isEmpty)
-      (d.retType, nt, ncon)
+      (retType, nt, ncon)
     else
       (bcs.get, nt, ncon)
   }
