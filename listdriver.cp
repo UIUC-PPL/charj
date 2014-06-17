@@ -34,6 +34,9 @@ def main(args : Array[string]) {
     return x#;
   });
 
+  wait def method2(x : int), method3() where x < 10 {
+  }
+
   for (val i : int = 0; i < 10; i += 1) {
   }
 }

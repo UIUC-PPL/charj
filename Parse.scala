@@ -121,12 +121,28 @@ object Parse extends StandardTokenParsers with App {
     | ifStmt
     | forStmt
     | whileStmt
-    //| waitStmt
+    | waitStmt
     | returnStmt <~ ";"
     | "{" ~> semiStmt.* <~ "}"   ^^ { case stmts  => StmtList(stmts) }
   )
 
-  //def waitStmt : Parser[Stmt] = "wait"
+  def funs : Parser[List[DefStmt]] = "def" ~> funList
+
+  def funList = mkList(funAtom, ",")
+
+  def funAtom = positioned(
+    funName ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")"
+    ^^ { case ident ~ gen ~ _ ~ typedParamList ~ _ =>
+      DefStmt(ident, if (gen.isEmpty) List() else gen.get, typedParamList, None, EmptyStmt())
+    }
+  )
+
+  def whereClause : Parser[Expression] = "where" ~> expression
+
+  def waitStmt : Parser[Stmt] = positioned(
+    "wait" ~ funs ~ whereClause.? ~ semiStmt
+    ^^ { case _ ~ funs ~ where ~ semi => WaitStmt(funs, where, semi) }
+  )
 
   def isSystem =
     "#".? ^^ {
