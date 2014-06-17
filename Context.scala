@@ -35,7 +35,7 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
   def checkAdd(sym : Symbol, stmt : Stmt, context : Context, pos : Position) {
     lst.find(a => condSyms(a._1,sym)) match {
       case Some(x) =>
-        SemanticError("conflict for " + sym + " and " + x + ": position " + pos + " and " + x._1.pos, x._1.pos)
+        SemanticError("Symbol \"" + sym.name + "\" already defined at " + x._1.pos, pos)
       case None => {
         sym.setPos(pos)
         lst += Tuple3(sym, stmt, context)

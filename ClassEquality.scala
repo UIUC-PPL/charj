@@ -43,8 +43,8 @@ object ClassEquality {
     val r1 = Unifier(true).subst(r.cs.t, r.bindings ++ rbinds)
     if (verbose) println("check class equality: l1 = " + l1 + ", r1 = " + r1)
     if (!Unifier(false).isEqual(l1, r1)) {
-      val lm1 = maybeResolveSingleClass(Type(l1), null)
-      val rm1 = maybeResolveSingleClass(Type(r1), null)
+      val lm1 = maybeResolveSingleClass(Type(l1),null,null)
+      val rm1 = maybeResolveSingleClass(Type(r1),null,null)
       if (verbose) println("lm1 = " + lm1 + ", rm1 = " + rm1)
       if (!lm1.isEmpty && !rm1.isEmpty) {
         if (lm1.get.cs.level > rm1.get.cs.level && (d == LHS() || d == Both())) {

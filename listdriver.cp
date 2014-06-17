@@ -23,7 +23,11 @@ def main(args : Array[string]) {
 
   lst.foreach({ (r : Ref[int]) =>
     val x : int = r#;
-    x + 10;
+  });
+
+  lst.foreach({ (r : Ref[int]) =>
+    val x : int = r#;
+
   });
 
   val lstx : List[int] = lst.map[int]({ (x : Ref[int]) : int =>
@@ -31,6 +35,5 @@ def main(args : Array[string]) {
   });
 
   for (val i : int = 0; i < 10; i += 1) {
-
   }
 }

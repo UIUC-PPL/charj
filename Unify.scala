@@ -4,7 +4,6 @@ import scala.collection.mutable.{ListBuffer,ArrayBuffer}
 import scala.util.parsing.input.Positional
 
 abstract class Term extends Stmt {
-  def getName : String
   def getTerms : List[Term]
 }
 case class Bound(t : String) extends Term {
@@ -23,7 +22,7 @@ case class Fun(n : String, terms : List[Term]) extends Term {
   override def getTerms = terms
 }
 case class Tok(t : String) extends Term {
-  override def toString = "UuU(" + t + ")"
+  override def toString = "\"" + t + "\""
   override def getName = t
   override def getTerms = List()
 }

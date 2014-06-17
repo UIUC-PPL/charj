@@ -105,19 +105,19 @@ object Checker {
 
         if (cond.sym == null)
           SemanticError("if statement condition type not determined", t.pos)
-        if (!ClassEquality.equal(cond.sym, resolveClassType(Type(booleanType),tree)))
+        if (!ClassEquality.equal(cond.sym, resolveClassType(Type(booleanType),tree,tree)))
           SemanticError("if statement condition must be of type boolean", t.pos)
       }
       case t@WhileStmt(expr1, _) => {
         if (expr1.sym == null)
           SemanticError("while statement condition type not determined", t.pos)
-        if (!ClassEquality.equal(expr1.sym, resolveClassType(Type(booleanType),tree)))
+        if (!ClassEquality.equal(expr1.sym, resolveClassType(Type(booleanType),tree,tree)))
           SemanticError("while statement condition must be of type boolean", t.pos)
       }
       case t@ForStmt(decls, expr1, cont, stmt) => {
         if (expr1.sym == null)
           SemanticError("for statement condition type not determined", t.pos)
-        if (!ClassEquality.equal(expr1.sym, resolveClassType(Type(booleanType),tree)))
+        if (!ClassEquality.equal(expr1.sym, resolveClassType(Type(booleanType),tree,tree)))
           SemanticError("for statement condition must be of type boolean", t.pos)
       }
       case t@DeclStmt(_, _, optType, Some(expr1)) => {
@@ -127,8 +127,8 @@ object Checker {
           SemanticError("decl statement condition type not determined", t.pos)
         if (optType.isEmpty)
           SemanticError("type required on decl", t.pos)
-        if (!ClassEquality.equal(expr1.sym, resolveClassType(optType.get, tree)) && !expr1.sym.isNull) {
-          val typ = resolveClassType(optType.get, tree)
+        if (!ClassEquality.equal(expr1.sym, resolveClassType(optType.get,tree,tree)) && !expr1.sym.isNull) {
+          val typ = resolveClassType(optType.get,tree,tree)
           SemanticError("decl type and expression must match: " + expr1.sym + " and " + typ, t.pos)
         }
       }
@@ -137,7 +137,7 @@ object Checker {
         if (verbose) println("retType = " + t.enclosingDef.sym.retType)
 
         if (optExp.isEmpty) {
-          if (!ClassEquality.equal(t.enclosingDef.sym.retType, resolveClassType(Type(unitType),tree)))
+          if (!ClassEquality.equal(t.enclosingDef.sym.retType, resolveClassType(Type(unitType),tree,tree)))
             SemanticError("return type of def must be unit (or not present)", t.pos)
         } else if (optExp.get.sym != null) {
           if (!ClassEquality.equal(t.enclosingDef.sym.retType, optExp.get.sym))
@@ -200,12 +200,12 @@ object Checker {
       if (verbose) println("checkTermString: both class and def and non-null")
     }
 
-    may = maybeResolveSingleClass(Type(Tok("fungen_" + defName + "_" + s)), tree)
+    may = maybeResolveSingleClass(Type(Tok("fungen_" + defName + "_" + s)), tree, tree)
 
     if (may.isEmpty) {
       if (tree.enclosingClass != null)
-        may = maybeResolveSingleClass(Type(Tok(clsName + "_" + s)), tree)
-      if (may.isEmpty) cls = resolveSingleClassType(Type(Tok(s)), tree)
+        may = maybeResolveSingleClass(Type(Tok(clsName + "_" + s)), tree, tree)
+      if (may.isEmpty) cls = resolveSingleClassType(Type(Tok(s)),tree,tree)
       else cls = may.get
     } else cls = may.get
 
@@ -246,14 +246,14 @@ object Checker {
 
     val inTypes = params.map {tparam =>
       if (verbose) println("\tresolving type for param: " + tparam)
-      resolveClassType(Type(tparam), context)
+      resolveClassType(Type(tparam),tree,context)
     };
     if (verbose) println("\tresolving type for ret: " + returnType);
     var retType = returnType match {
-      case Some(x) => resolveClassType(x, tree)
-      case None => resolveClassType(Type(unitType), tree)
+      case Some(x) => resolveClassType(x,tree,tree)
+      case None => resolveClassType(Type(unitType),tree,tree)
     }
-    if (isConstructor) retType = resolveClassType(tree.enclosingClass.getType(), tree)
+    if (isConstructor) retType = resolveClassType(tree.enclosingClass.getType(),tree,tree)
 
     if (sym == null) {
       SemanticError("could not resolve def types", tree.pos)
@@ -267,7 +267,7 @@ object Checker {
 
   def setChildrenLevelRecur(sym : ClassSymbol) {
     for (child <- sym.children) {
-      val cls = resolveSingleClassType(child.stmt.parent.get, child.stmt)
+      val cls = resolveSingleClassType(child.stmt.parent.get,child.stmt,child.stmt)
       // compute this classes bindings
       child.parentBindings ++= cls.bindings
       // propagate parent bindings up
@@ -346,7 +346,7 @@ object Checker {
     tree.asInstanceOf[ClassStmt] match {
       case t@ClassStmt(name, _, _, Some(parent), _) => {
         if (verbose) println(t.pos + ": name: " + name + ", parent: " + parent + " type is " + t.sym)
-        val cls = resolveSingleClassType(parent, tree)
+        val cls = resolveSingleClassType(parent,tree,tree)
         if (cls != null) t.context.extensions += cls
         if (verbose) println("\t subclass of " + cls)
 
@@ -385,7 +385,7 @@ object Checker {
       }
     }
     if (verbose) println("determineDeclType: " + n1)
-    val sym = resolveClassType(t1, tree)
+    val sym = resolveClassType(t1,tree,tree)
     val thisSym = tree.context.resolve{a : (Symbol,Context) => a._1 match {
       case DeclSymbol(n, _) => n == n1
       case DefSymbol(n, _) => n == n1
@@ -411,17 +411,17 @@ object Checker {
         if (verbose) println(expr.pos + ": function call: " + name + ", gens = " + gens + ", sym = " + sym)
 
         val prevBindings = if (sym != null) sym.getBindings() else List()
-        var (sym2, term2, con2) = findFunType(cls, name.last, con, types, gens, prevBindings)
+        var (sym2, term2, con2) = findFunType(expr, name.last, con, types, gens, prevBindings)
 
-        val (nt, ncon) = findNew(sym2, sym2.getBindings() ++ prevBindings)
+        val (nt, ncon) = findNew(sym2,expr,sym2.getBindings() ++ prevBindings)
 
         if (verbose) println("FunExpr: found function type: " + sym2 + ", nt = " + nt)
 
-        expr.sym = resolveAnySymbol(Type(nt), null)
+        expr.sym = resolveAnySymbol(Type(nt), expr, null)
         expr.context = ncon
       }
       case StrLiteral(str) => {
-        expr.sym = resolveClassType(Type(stringType), cls)
+        expr.sym = resolveClassType(Type(stringType),expr,cls)
       }
       case AsyncExpr(aexpr) => {
         expr.sym = aexpr.sym
@@ -435,7 +435,7 @@ object Checker {
       case NumLiteral(str) => {
         val theInt = tryConvertToInt(str)
         if (!theInt.isEmpty)
-          expr.sym = resolveClassType(Type(intType), cls)
+          expr.sym = resolveClassType(Type(intType),expr,cls)
       }
       case StrExpr(lst) => {
         if (verbose) println("strexpr determine type of: " + lst)
@@ -444,8 +444,8 @@ object Checker {
 
         if (verbose) println("strexpr push over: " + expr.sym)
         val (sym2,_,_) = findIdentType(cls, null, con, lst, sym)
-        val (nt, ncon) = findNew(sym2, sym2.getBindings())
-        val sym3 = resolveAnySymbol(Type(nt), null)
+        val (nt, ncon) = findNew(sym2,expr,sym2.getBindings())
+        val sym3 = resolveAnySymbol(Type(nt), expr, null)
 
         if (verbose) println("new term from strexpr = " + nt)
         if (verbose) println("check type of StrExpr: " + sym3)
@@ -453,7 +453,7 @@ object Checker {
         expr.sym = sym3
         expr.context = ncon
       }
-      case True() | False() => expr.sym = resolveClassType(Type(booleanType), cls)
+      case True() | False() => expr.sym = resolveClassType(Type(booleanType),expr,cls)
       case DotExpr(l, r) => {
         if (l.sym == null) {
           SemanticError("should be resolved to type" + l, l.pos)
@@ -479,27 +479,27 @@ object Checker {
       case MulExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case AndExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case OrrExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
-      case ComExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
-      case LesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
-      case LeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
-      case GesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
-      case GeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
-      case NeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType), cls))
+      case ComExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType),expr,cls))
+      case LesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType),expr,cls))
+      case LeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType),expr,cls))
+      case GesExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType),expr,cls))
+      case GeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType),expr,cls))
+      case NeqExpr(l, r) => checkBinarySet(l, r, expr, resolveClassType(Type(booleanType),expr,cls))
       case AopExpr(l, r, op) => {
         SemanticError(op + ": arbitrary operators currently unsupported", l.pos)
       }
       case NotExpr(l) => {
-        if (!ClassEquality.equal(l.sym, resolveClassType(Type(booleanType), cls)))
+        if (!ClassEquality.equal(l.sym, resolveClassType(Type(booleanType),expr,cls)))
           SemanticError("boolean negation incorrect type: " + l.sym, l.pos)
         else expr.sym = l.sym
       }
       case NegExpr(l) => {
-        if (!ClassEquality.equal(l.sym, resolveClassType(Type(intType), cls)))
+        if (!ClassEquality.equal(l.sym, resolveClassType(Type(intType),expr,cls)))
           SemanticError("int negation incorrect type: " + l.sym, l.pos)
         else expr.sym = l.sym
       }
       case Null() => {
-        expr.sym = resolveClassType(Type(refType), cls)
+        expr.sym = resolveClassType(Type(refType),expr,cls)
         expr.sym.isNull = true
       }
       case _ => ;
@@ -539,7 +539,7 @@ object Checker {
     } else (sym, t, context)
   }
 
-  def findFunType(cls : Stmt, methodName : String, context : Context, lst : List[ResolvedType],
+  def findFunType(expr : Expression, methodName : String, context : Context, lst : List[ResolvedType],
                   gens : List[Term], bindings : List[(Term,Term)]) : (ResolvedType, Term, Context) = {
     if (verbose) println("trying to resolve function " + methodName + " bindings = " + bindings + " context = " + context)
 
@@ -580,7 +580,7 @@ object Checker {
             if (verbose) println("\t is constructor def: abstract = " + t.classCons.sym)
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
             // if the class constructor being called is abstract this is invalid
-            if (t.classCons.sym.isAbstract) SemanticError("can not instantiate abstract class", cls.pos);
+            if (t.classCons.sym.isAbstract) SemanticError("can not instantiate abstract class", expr.pos);
             function_bindings = Unifier(true).unifyTerm(t.classCons.getType().full, Fun(name, gens), List())
             if (verbose) println("constructor bindings = " + function_bindings)
           }
@@ -629,12 +629,12 @@ object Checker {
     }}
 
     if (sym.isEmpty)
-      SemanticError("def " + methodName + ", in = " + lst + ", unknown, searched context: " + context, cls.pos)
+      SemanticError("could not find matching function for \"" + methodName + "\"", expr.pos)
 
     println("findfunType: resolved context bindings: " + sym.get._2)
 
     // (sym.get._2): propagate the bindings from a subtype when finding the new type
-    val (nt, ncon) = findNew(retType, function_bindings ++ bindings ++ sym.get._2)
+    val (nt, ncon) = findNew(retType,expr,function_bindings ++ bindings ++ sym.get._2)
 
     if (isConstructor) {
       // it must be a proper def in this case (not a decl bound to a func)
@@ -645,7 +645,7 @@ object Checker {
 
     if (verbose) println("resolved def rettype to: " + retType + ", new term = " + nt)
 
-    val sym3 = resolveAnySymbol(Type(nt), null)
+    val sym3 = resolveAnySymbol(Type(nt), expr, null)
 
     if (verbose) println("resolved final type to: " + sym3)
 
@@ -659,14 +659,14 @@ object Checker {
     }
   }
 
-  def findNew(sym : ResolvedType, bindings : List[(Term,Term)] = List()) : (Term, Context) = {
+  def findNew(sym : ResolvedType, pos : Positional, bindings : List[(Term,Term)] = List()) : (Term, Context) = {
     if (verbose) println("sym = " + sym + ", binds = " + bindings)
     sym match {
       case sym@SingleType(_,_) => {
         val nt = Unifier(true).subst(sym.cs.t, sym.bindings ++ bindings)
         if (nt == sym.cs.t) (nt, sym.cs.context)
         else {
-          val ret = maybeResolveSingleClass(Type(nt), null)
+          val ret = maybeResolveSingleClass(Type(nt), pos, null)
           (nt, if (ret.isEmpty) BaseContext.context else ret.get.cs.context)
         }
       }
@@ -692,35 +692,35 @@ object Checker {
 
     if (verbose) println("findDeclType: sym = " + sym);
 
-    if (sym.isEmpty) SemanticError("symbol " + ident + " unknown", cls.pos)
+    if (sym.isEmpty) SemanticError("identifier \"" + ident + "\" can not be found", cls.pos)
 
     val d = sym.get._1.asInstanceOf[HasDeclType]
-    val (nt, ncon) = findNew(d.declType, sym.get._2 ++ bindings)
+    val (nt, ncon) = findNew(d.declType,cls,sym.get._2 ++ bindings)
 
     if (verbose) println("findDeclType: d.declType.bindings = " + d.declType.getBindings() + ", sym.get._2 = " + sym.get._2 + ", bindings = " + bindings)
     if (verbose) println("findDeclType: nt = " + nt)
 
-    val sym3 = resolveAnySymbol(Type(nt), null)
+    val sym3 = resolveAnySymbol(Type(nt), cls, null)
     (sym3, nt, ncon)
   }
 
-  def resolveAnySymbol(t : Type, tree : Stmt) : ResolvedType = {
+  def resolveAnySymbol(t : Type, pos : Positional, tree : Stmt) : ResolvedType = {
     t.full match {
-      case Thunker(terms) => FunType(terms.map{t : Term => resolveAnySymbol(Type(t), tree)})
+      case Thunker(terms) => FunType(terms.map{t : Term => resolveAnySymbol(Type(t), pos, tree)})
       case t@MVar(_) => {
         val cs = ClassSymbol("mvar", 0)
         cs.t = t
         SingleType(cs, List())
       }
       case _ => {
-        val opt = maybeResolveSingleClass(t, tree)
-        if (opt.isEmpty) SemanticError("could not resolve type: " + t, tree.pos)
+        val opt = maybeResolveSingleClass(t, pos, tree)
+        if (opt.isEmpty) SemanticError("could not resolve type: " + t, pos.pos)
         opt.get
       }
     }
   }
 
-  def maybeResolveSingleClass(t : Type, tree : Stmt) : Option[SingleType] = {
+  def maybeResolveSingleClass(t : Type, pos : Positional, tree : Stmt) : Option[SingleType] = {
     // @todo for now namespaces for types is not supported
     var sym : Option[(Symbol,List[(Term,Term)])] = None
     val con : Context = (if (tree == null) BaseContext.context else tree.context)
@@ -742,14 +742,14 @@ object Checker {
     }
   }
 
-  def resolveClassType(t : Type, tree : Stmt = null) : ResolvedType = {
-    resolveAnySymbol(t, tree)
+  def resolveClassType(t : Type, pos : Positional, tree : Stmt = null) : ResolvedType = {
+    resolveAnySymbol(t, pos, tree)
   }
 
-  def resolveSingleClassType(t : Type, tree : Stmt = null) : SingleType = {
-    val ret = maybeResolveSingleClass(t, tree)
+  def resolveSingleClassType(t : Type, pos : Positional, tree : Stmt = null) : SingleType = {
+    val ret = maybeResolveSingleClass(t, pos, tree)
     if (ret.isEmpty) {
-      SemanticError("could not resolve type " + t, t.pos)
+      SemanticError("could not resolve type " + t.full, pos.pos)
       null
     } else
       ret.get

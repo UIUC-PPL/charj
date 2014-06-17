@@ -100,12 +100,15 @@ object Parse extends StandardTokenParsers with App {
       classStmt
     | defStmt
     | includeStmt
+    | failure("only classes, defs, and includes are allowed at the top level")
   )
 
   def innerStmtList = innerStmt.*
 
   def innerStmt = positioned(
-    defStmt | varStmt <~ ";"
+      defStmt
+    | varStmt <~ ";"
+    | failure("only defs, vals and vars are allowed inside a class")
   )
 
   def empty = ";" ^^^ EmptyStmt()
@@ -118,9 +121,12 @@ object Parse extends StandardTokenParsers with App {
     | ifStmt
     | forStmt
     | whileStmt
+    //| waitStmt
     | returnStmt <~ ";"
     | "{" ~> semiStmt.* <~ "}"   ^^ { case stmts  => StmtList(stmts) }
   )
+
+  //def waitStmt : Parser[Stmt] = "wait"
 
   def isSystem =
     "#".? ^^ {
@@ -142,6 +148,7 @@ object Parse extends StandardTokenParsers with App {
     | "[" ~ "]" ^^ { case _ ~ _ => "[]" }
     | "<" ~ ">" ^^ { case _ ~ _ => "<>" }
     | "#" | "^" | "?"
+    | failure("invalid function name: allowed special chars #,^,?,[], or alpha[alpha/numeric]*")
   )
 
   def includeStmt = positioned(
@@ -152,8 +159,7 @@ object Parse extends StandardTokenParsers with App {
     "def" ~ funName ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
     ^^ { case _ ~ ident ~ gen ~ _ ~ typedParamList ~ _ ~ typeStmt ~ semi =>
       DefStmt(ident, if (gen.isEmpty) List() else gen.get, typedParamList, typeStmt, semi)
-    }
-  )
+    })
 
   def typedParam = positioned(
     ident ~ typeStmt
@@ -173,12 +179,12 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def typeAtom = positioned(
-    qualifiedIdent ~ generic.?
-    ^^ { case qualIdent ~ generic =>
+    ident ~ generic.?
+    ^^ { case ident ~ generic =>
       if (generic.isEmpty)
-        Tok(qualIdent.reduce(_ + _))
+        Tok(ident)
       else
-        Fun(qualIdent.reduce(_ + _), generic.get)
+        Fun(ident, generic.get)
     }
   )
 
@@ -202,9 +208,9 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case _ ~ _ ~ varStmts ~ _ ~ expr1 ~ _ ~ assign ~ _ ~ stmt => ForStmt(varStmts, expr1, assign, stmt) }
   )
 
-  def mkList[T](rule : Parser[T], op : String) =
-    rule ~ followMkList(rule,op).* ^^ { case fst ~ rest => fst :: rest }
-  def followMkList[T](rule : Parser[T], op : String) = op ~> rule
+  def mkList[T <: Positional](rule : Parser[T], op : String) =
+    positioned(rule) ~ followMkList(rule,op).* ^^ { case fst ~ rest => fst :: rest }
+  def followMkList[T <: Positional](rule : Parser[T], op : String) = op ~> rule
 
   def whileStmt = positioned(
     "while" ~ "(" ~  expression ~ ")" ~ semiStmt
@@ -226,23 +232,23 @@ object Parse extends StandardTokenParsers with App {
   def elseStmt = "else" ~> semiStmt
 
   def genericOpen : Parser[List[Term]] = "[" ~> qualifiedIdentOpen <~ "]"
-  def qualifiedIdentOpen = mkList(qualifiedIdent ~ genericOpen.? ^^ { case ident ~ maybeGeneric =>
+  def qualifiedIdentOpen = mkList(ident ~ genericOpen.? ^^ { case ident ~ maybeGeneric =>
     if (maybeGeneric.isEmpty)
-        MVar(ident.reduce(_ + _))
+        MVar(ident)
       else
-        Fun(ident.reduce(_ + _), maybeGeneric.get)
+        Fun(ident, maybeGeneric.get)
    }, ",")
 
   def generic : Parser[List[Term]] = "[" ~> qualifiedIdentList <~ "]"
 
-  def qualifiedIdentList = mkList(qualifiedIdent ~ generic.? ^^ { case ident ~ maybeGeneric =>
+  def qualifiedIdentList = mkList(ident ~ generic.? ^^ { case ident ~ maybeGeneric =>
     if (maybeGeneric.isEmpty)
-        Tok(ident.reduce(_ + _))
+        Tok(ident)
       else
-        Fun(ident.reduce(_ + _), maybeGeneric.get)
+        Fun(ident, maybeGeneric.get)
    }, ",")
 
-  def qualifiedIdent = mkList(ident, ".")
+  //def qualifiedIdent = mkList(ident, ".")
 
   def expression : Parser[Expression] = bOr
 
@@ -252,9 +258,8 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def newExpr = positioned(
-    "new" ~ qualifiedIdent ~ generic.? ~ "(" ~ parameters.? ~ ")"
-    ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(ident, if (generic.isEmpty) List() else generic.get,
-                                                              params) }
+    "new" ~ ident ~ generic.? ~ "(" ~ parameters.? ~ ")"
+    ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(List(ident), if (generic.isEmpty) List() else generic.get, params) }
   )
 
   def parameters = mkList(expression, ",")
@@ -275,12 +280,13 @@ object Parse extends StandardTokenParsers with App {
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }
     | "null"                     ^^ { case _      => Null() }
-    |  ident                     ^^ { case ident  => StrExpr(List(ident)) }
+    | ident                      ^^ { case ident  => StrExpr(List(ident)) }
     | "-" ~> expression          ^^ { case expr   => NegExpr(expr) }
     | numericLit                 ^^ { case lit    => NumLiteral(lit) }
     | stringLit                  ^^ { case lit    => StrLiteral(lit) }
     | "(" ~> expression <~ ")"   ^^ { case expr   => expr }
     | "!" ~> expression          ^^ { case expr   => NotExpr(expr) }
+    | failure("illegal start of simple expression")
   )
 
   def opCall1 = positioned(
