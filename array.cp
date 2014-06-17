@@ -2,14 +2,6 @@ include "ref.cp";
 include "base.cp";
 include "seq.cp";
 
-class ArrayCell {
-  val cur : int;
-  
-  def ArrayCell(index : int) {
-    cur = index;
-  }
-}
-
 // this is a special system class for a raw block of data
 class BLOCK[T] {
   def BLOCK(size : int) { }
@@ -43,16 +35,6 @@ class Array[T] : Seq[T] {
       newArr[i] = fun(block[i]);
     }
     return newArr;
-  }
-}
-
-class ArrayCell2 {
-  val cur1 : int;
-  val cur2 : int;
-  
-  def ArrayCell2(index1 : int, index2 : int) {
-    cur1 = index1;
-    cur2 = index2;
   }
 }
 
