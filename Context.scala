@@ -17,7 +17,8 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
 
   def condSyms(sym1 : Symbol, sym2 : Symbol) : Boolean = {
     (sym1,sym2) match {
-      case (t1@DefSymbol(n1,_),t2@DefSymbol(n2,_)) if (n1 == n2 && t1.arity != t2.arity) => false
+      case (t1@DefSymbol(n1,_),t2@DefSymbol(n2,_))
+        if (n1 == n2 && (t1.arity != t2.arity || t1.name == "@afun" || t2.name == "@afun")) => false
       case (t1@DeclSymbol(n1,_),t2@DefSymbol(n2,_)) if (n1 == n2) => true
       case (t2@DefSymbol(n2,_),t1@DeclSymbol(n1,_)) if (n1 == n2) => true
       case (t1@DeclSymbol(n1,_),t2@DeclSymbol(n2,_)) if (n1 == n2) => true
