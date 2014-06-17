@@ -5,6 +5,7 @@ import scala.util.parsing.input.Positional
 
 abstract class Term extends Stmt {
   def getTerms : List[Term]
+  def getName : String
 }
 case class Bound(t : String) extends Term {
   override def toString = "l\"" + t + "\""
