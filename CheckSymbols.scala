@@ -547,7 +547,7 @@ object Checker {
 
   def findFunType(expr : Expression, methodName : String, context : Context, lst : List[ResolvedType],
                   gens : List[Term], bindings : List[(Term,Term)]) : (ResolvedType, Term, Context) = {
-    if (verbose) println("trying to resolve function " + methodName + " bindings = " + bindings + " context = " + context)
+    if (verbose) println("trying to resolve function " + methodName + " bindings = " + bindings)
 
     var function_bindings : List[(Term, Term)] = List()
     var retType : ResolvedType = null
