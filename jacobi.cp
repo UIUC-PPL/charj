@@ -5,12 +5,15 @@ include "list.cp";
 
 class Jacobi : ParArray2[Jacobi] {
   val block : Array2[double];
-  var conv : boolean = false;
+  val block_up : Array2[double];
+  var localConv : boolean = false;
+  var allConv : boolean = false;
 
   def Jacobi(xdim_ : int, ydim_ : int, bz1 : int, bz2 : int) {
     ParArray2[Jacobi](xdim_, ydim_);
 
     block = Array2[double](bz1+2,bz2+2);
+    block_up = Array2[double](bz1+2,bz2+2);
     for (val i : int = 0; i < bz1+2; i += 1)
       for (val j : int = 0; j < bz2+2; j += 1)
         block[i,j] = 1.0;
@@ -38,6 +41,20 @@ class Jacobi : ParArray2[Jacobi] {
     for (var i : int = 0; i < 4; i += 1)
       wait def process(arr : Array[double], it : int, fun : (Array[double] -> unit))
         where it == iter { fun(arr); }
+
+    localConv = kernel();
+  }
+
+  def kernel() : boolean {
+    val maxdiff : double = 0.0;
+    for (var i : int = 1; i < block.sz1; i += 1)
+      for (var j : int = 1; j < block.sz2; j += 1) {
+        block_up[i,j] = (block[i+1,j] + block[i-1,j] + block[i,j+1] + block[i,j-1] + block[i,j])*0.2;
+        val diff : double = block_up[i,j] - block[i,j];
+        if (diff > maxdiff) maxdiff = diff;
+      }
+    block = block_up;
+    return maxdiff < 0.001;
   }
 
   def wrap1(i : int) : int { return (i+sz1) % sz1; }
@@ -45,15 +62,15 @@ class Jacobi : ParArray2[Jacobi] {
 
   def startReduction() {
     async this.reduce[boolean](
-      {(cur : boolean) : boolean => return cur && conv; },
-      {(result : boolean) => conv = result; startReduction();}
+      {(cur : boolean) : boolean => return cur && localConv; },
+      {(result : boolean) => allConv = result; startReduction();}
     );
   }
 
   def computeTillConverge() {
     var curIter : int = 0;
     var started : boolean = false;
-    while (!conv) {
+    while (!allConv) {
       iteration(curIter);
       curIter += 1;
       if (!started) {
