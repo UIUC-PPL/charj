@@ -2,12 +2,14 @@ include "system.cp";
 include "array.cp";
 include "parallel.cp";
 include "list.cp";
+include "math.cp";
 
 class Jacobi : ParArray2[Jacobi] {
   val block : Array2[double];
   val block_up : Array2[double];
   var localConv : boolean = false;
-  var allConv : boolean = false;
+  var curIter : int = 0;
+  var maxIter : int = 10000;
 
   def Jacobi(xdim_ : int, ydim_ : int, bz1 : int, bz2 : int) {
     ParArray2[Jacobi](xdim_, ydim_);
@@ -61,22 +63,31 @@ class Jacobi : ParArray2[Jacobi] {
   def wrap2(i : int) : int { return (i+sz2) % sz2; }
 
   def startReduction() {
-    async this.reduce[boolean](
-      {(cur : boolean) : boolean => return cur && localConv; },
-      {(result : boolean) => allConv = result; startReduction();}
+    async this.reduce[Tuple[boolean,int]](
+      {(cur : Tuple[boolean,int]) : Tuple[boolean,int] =>
+        return t2(localConv && cur._1, maxInt(curIter,cur._2));
+      },
+      {(result : Tuple[boolean,int]) =>
+        maxIter = result._2;
+        if (!result._1) startReduction();
+      }
     );
   }
 
   def computeTillConverge() {
-    var curIter : int = 0;
     var started : boolean = false;
-    while (!allConv) {
-      iteration(curIter);
+    while (curIter < maxIter) {
+      sync(async iteration(curIter));
       curIter += 1;
       if (!started) {
         startReduction();
         started = true;
       }
+    }
+    val findMax : int = sync(async this.reduce[int]( {(cur:int):int => maxInt(curIter,cur);},null));
+    while (curIter < findMax) {
+      sync(async iteration(curIter));
+      curIter += 1;
     }
   }
 
