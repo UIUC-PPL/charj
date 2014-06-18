@@ -21,10 +21,6 @@ case class SingleType(cs : ClassSymbol, val bindings : List[(Term,Term)]) extend
   val name : String = ""
   override def toString = { cs.toString + ", bds = " + bindings }
 }
-// case class TermType(t : Term, val bindings : List[(Term,Term)]) extends Symbol with ResolvedType {
-//   def getBindings() : List[(Term,Term)] = bindings
-//   override def toString = { t + ", bds = " + bindings }
-// }
 
 case class ClassSymbol(name : String, arity : Int) extends Symbol {
   var t : Term = null
