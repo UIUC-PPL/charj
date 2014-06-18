@@ -56,7 +56,10 @@ class Jacobi : ParArray2[Jacobi] {
     while (!conv) {
       iteration(curIter);
       curIter += 1;
-      if (!started) startReduction();
+      if (!started) {
+        startReduction();
+        started = true;
+      }
     }
   }
 
