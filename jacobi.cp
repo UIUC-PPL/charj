@@ -60,6 +60,7 @@ class Jacobi : ParArray2[Jacobi] {
     }
   }
 
+  // this should not be here but the wait is not semantically checked yet
   def process(arr : Array[double], i : int, fun : (Array[double] -> unit)) { fun(arr); }
 }
 
