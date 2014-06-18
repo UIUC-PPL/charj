@@ -8,12 +8,13 @@ object BasicTypes {
   val stringType = Bound("string")
   val charType = Bound("char")
   val unitType = Bound("unit")
+  val doubleType = Bound("double")
   val refType = Fun("Ref", List(MVar("T")))
 
   def isBasic(rt : ResolvedType) : Boolean = {
     rt match {
       case st@SingleType(_,_) => st.cs.t == booleanType || st.cs.t == intType || st.cs.t == stringType ||
-                                 st.cs.t == charType || st.cs.t == unitType;
+                                 st.cs.t == charType || st.cs.t == unitType || st.cs.t == doubleType;
       case _ => false
     }
   }

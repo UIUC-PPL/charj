@@ -4,6 +4,12 @@ class #char { }
 class #int {
   def gen() : string { return "int32_t"; } 
 }
+class #double {
+  def gen() : string { return "double"; }
+}
+class #float {
+  def gen() : string { return "float"; }
+}
 class #int32 {
   def gen() : string { return "int32_t"; } 
 }

@@ -162,6 +162,7 @@ class PureExprVisitor[U >: Expression](expr : Expression, s : Stmt, visit2 : (U,
       case t@DefExpr(stmt) => { visit2(t, s) }
       case MulExpr(l, r) => visitBinary(l, r, s, expr)
       case DivExpr(l, r) => visitBinary(l, r, s, expr)
+      case ModExpr(l, r) => visitBinary(l, r, s, expr)
       case AddExpr(l, r) => visitBinary(l, r, s, expr)
       case SubExpr(l, r) => visitBinary(l, r, s, expr)
       case OrrExpr(l, r) => visitBinary(l, r, s, expr)

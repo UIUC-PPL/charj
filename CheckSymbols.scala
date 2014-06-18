@@ -433,9 +433,14 @@ object Checker {
         expr.sym = stmt.sym.declType
       }
       case NumLiteral(str) => {
-        val theInt = tryConvertToInt(str)
-        if (!theInt.isEmpty)
-          expr.sym = resolveClassType(Type(intType),expr,cls)
+        if (str contains ".") {
+          println("found double: str = " + str + ", contains = " + (str contains "."))
+          expr.sym = resolveClassType(Type(doubleType),expr,cls)
+        } else {
+          val theInt = tryConvertToInt(str)
+          if (!theInt.isEmpty)
+            expr.sym = resolveClassType(Type(intType),expr,cls)
+        }
       }
       case StrExpr(lst) => {
         if (verbose) println("strexpr determine type of: " + lst)
@@ -475,6 +480,7 @@ object Checker {
       }
       case AddExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case DivExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
+      case ModExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case SubExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case MulExpr(l, r) => checkBinarySet(l, r, expr, l.sym)
       case AndExpr(l, r) => checkBinarySet(l, r, expr, l.sym)

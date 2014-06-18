@@ -11,6 +11,8 @@ import scala.util.parsing.input.Positional
 import scala.collection.mutable.ListBuffer
 
 object Parse extends StandardTokenParsers with App {
+  override val lexical = new Lexer
+
   lexical.reserved += ("class", "def", "val", "var",
                        "async", "sync", "wait", "where",
                        "if", "else", "true", "false", "new",
@@ -128,10 +130,10 @@ object Parse extends StandardTokenParsers with App {
 
   def funs : Parser[List[DefStmt]] = "def" ~> funList
 
-  def funList = mkList(funAtom, ",")
+  def funList = repsep(funAtom, ",")
 
   def funAtom = positioned(
-    funName ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")"
+    funName ~ generic.?  ~ "(" ~ repsep(typedParam, ",").? ~ ")"
     ^^ { case ident ~ gen ~ _ ~ typedParamList ~ _ =>
       DefStmt(ident, if (gen.isEmpty) List() else gen.get, typedParamList, None, EmptyStmt())
     }
@@ -172,7 +174,7 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def defStmt = positioned(
-    "def" ~ funName ~ generic.?  ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
+    "def" ~ funName ~ generic.?  ~ "(" ~ repsep(typedParam, ",").? ~ ")" ~ typeStmt.? ~ (semi | empty)
     ^^ { case _ ~ ident ~ gen ~ _ ~ typedParamList ~ _ ~ typeStmt ~ semi =>
       DefStmt(ident, if (gen.isEmpty) List() else gen.get, typedParamList, typeStmt, semi)
     })
@@ -212,7 +214,7 @@ object Parse extends StandardTokenParsers with App {
 
   def typeAtomListP : Parser[Term] =
     typeAtomList ^^ { case lst => if (lst.length == 1) lst.head else Thunker(lst) }
-  def typeAtomList : Parser[List[Term]] = mkList(optTypeAtom, "->")
+  def typeAtomList : Parser[List[Term]] = repsep(optTypeAtom, "->")
 
   def ifStmt = positioned(
     "if" ~ "(" ~ expression ~ ")" ~ semiStmt ~ elseStmt.?
@@ -220,13 +222,9 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def forStmt = positioned(
-    "for" ~ "(" ~ mkList(varStmt, ",") ~ ";" ~ expression ~ ";" ~ mkList(assignStmt, ",") ~ ")" ~ semiStmt
+    "for" ~ "(" ~ repsep(varStmt, ",") ~ ";" ~ expression ~ ";" ~ repsep(assignStmt, ",") ~ ")" ~ semiStmt
     ^^ { case _ ~ _ ~ varStmts ~ _ ~ expr1 ~ _ ~ assign ~ _ ~ stmt => ForStmt(varStmts, expr1, assign, stmt) }
   )
-
-  def mkList[T <: Positional](rule : Parser[T], op : String) =
-    positioned(rule) ~ followMkList(rule,op).* ^^ { case fst ~ rest => fst :: rest }
-  def followMkList[T <: Positional](rule : Parser[T], op : String) = op ~> rule
 
   def whileStmt = positioned(
     "while" ~ "(" ~  expression ~ ")" ~ semiStmt
@@ -248,7 +246,7 @@ object Parse extends StandardTokenParsers with App {
   def elseStmt = "else" ~> semiStmt
 
   def genericOpen : Parser[List[Term]] = "[" ~> qualifiedIdentOpen <~ "]"
-  def qualifiedIdentOpen = mkList(ident ~ genericOpen.? ^^ { case ident ~ maybeGeneric =>
+  def qualifiedIdentOpen = repsep(ident ~ genericOpen.? ^^ { case ident ~ maybeGeneric =>
     if (maybeGeneric.isEmpty)
         MVar(ident)
       else
@@ -257,14 +255,14 @@ object Parse extends StandardTokenParsers with App {
 
   def generic : Parser[List[Term]] = "[" ~> qualifiedIdentList <~ "]"
 
-  def qualifiedIdentList = mkList(ident ~ generic.? ^^ { case ident ~ maybeGeneric =>
+  def qualifiedIdentList = repsep(ident ~ generic.? ^^ { case ident ~ maybeGeneric =>
     if (maybeGeneric.isEmpty)
         Tok(ident)
       else
         Fun(ident, maybeGeneric.get)
    }, ",")
 
-  //def qualifiedIdent = mkList(ident, ".")
+  //def qualifiedIdent = repsep(ident, ".")
 
   def expression : Parser[Expression] = bOr
 
@@ -278,10 +276,10 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(List(ident), if (generic.isEmpty) List() else generic.get, params) }
   )
 
-  def parameters = mkList(expression, ",")
+  def parameters = repsep(expression, ",")
 
   def anonFunc = positioned(
-    "{" ~ "(" ~ mkList(typedParam, ",").? ~ ")" ~ typeStmt.? ~ "=>" ~ semiStmt.* ~  "}" ^^ {
+    "{" ~ "(" ~ repsep(typedParam, ",").? ~ ")" ~ typeStmt.? ~ "=>" ~ semiStmt.* ~  "}" ^^ {
       case _ ~ _ ~ typedParamList ~ _ ~ typeStmt ~ _ ~ semi ~ _ =>
         DefStmt("@afun", List(), typedParamList, typeStmt, StmtList(semi))
     }
@@ -342,7 +340,7 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def possOps = "$" | "@" | "%"
+  def possOps = "$" | "@"
   def possOps2 = "$" | "#" | "@" | "%" | "~" | "+" | "-" | "*" | "/" | "\\"
   def opList : Parser[String] = possOps | possOps ~ opList2 ^^ { case p ~ l => p + l }
   def opList2 : Parser[String] = possOps2 | possOps2 ~ opList2 ^^ { case p ~ l => p + l }
@@ -356,11 +354,12 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def term : Parser[Expression] = positioned(
-    opExpr ~ rep("*" ~ opExpr | "/" ~ opExpr)
+    opExpr ~ rep("*" ~ opExpr | "/" ~ opExpr | "%" ~ opExpr)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, "*" ~ y) => MulExpr(x, y)
         case (x, "/" ~ y) => DivExpr(x, y)
+        case (x, "%" ~ y) => ModExpr(x, y)
       }
     }
   )

@@ -83,6 +83,7 @@ case class NumLiteral(num : String) extends Expression
 
 case class MulExpr(el : Expression, er : Expression) extends Expression // *
 case class DivExpr(el : Expression, er : Expression) extends Expression // /
+case class ModExpr(el : Expression, er : Expression) extends Expression // %
 case class AddExpr(el : Expression, er : Expression) extends Expression // +
 case class SubExpr(el : Expression, er : Expression) extends Expression // -
 case class AndExpr(el : Expression, er : Expression) extends Expression // &&
