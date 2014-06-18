@@ -1,0 +1,65 @@
+To build:
+
+make build (requires scalac-2.10)
+
+To run:
+
+./compile <file-name>
+
+File summary:
+
+Lexer.scala: (PASS 1) extends the "StdLexical" provided by Scala's
+standard libraries, it only adds functionality to handle parsing of
+fractional entities (like doubles/floats)
+
+Parse.scala: (PASS 2)  extends the "StandardTokenParsers" provided by
+Scala, describes the entire grammar in LL(n) style using parser
+combinators, inspired from Parsec (Haskell's widely-known parser
+combinator library), much of this abuses Scala's operator overloading
+and definition to describe the grammar a DSL-like form
+
+Tree.scala: the entire AST is described here, except for Term, which
+is the base class for type system
+
+Symbol.scala: all the symbols that go into the symbol table
+(Context.scala) are defined here, there are three types (Class, Def,
+Decl) and anything else is a ResolvedType, which is a semi-concrete
+manifestation of those (basically a bound type, produced through
+unification).
+
+Context.scala: this contains the definitions for the symbol table,
+handles order of resolution and symbol resolution (scope order,
+searching up the inheritance hierarchy) along with definition of
+symbol equivalence (e.g. currently defs with the same name are
+considering conflicting if they have the same number of arguments)
+
+Error.scala: simple error handler for semantic level errors
+
+Visitor.scala: the visitor pattern for walking the tree and doing
+something for each node, there is currently one for statements and
+expressions, although i am considering unifying them
+
+CollectSymbols.scala: (PASS 3) during this stage all the defined
+symbols (implicit or explicit) are collected and put in the
+appropriate context, the context hierarchy is built, conflicts between
+equivalent symbols in the same context cause an error
+
+ClassEquality.scala: this class simply handles comparing two given
+types to determine if they are "equal". class equality typically
+involves finding the least common ancestor by traversing up the
+inheritance hierarchy for a common type
+
+Unify.scala: the brunt of the type system (starting the Term class) is
+defined here: generic class types with arity, bound types, function
+types,. This module implements classical first-order logic unification
+to determine bindings between instantiated types (e.g. List[T] `unify`
+List[Option[U]] => resulting binding T == Option[U]) with the occurs
+check. This module is strong enough to actually handle full program
+type inference (if we decide to go that direction)...
+
+CheckSymbols.scala: (PASS 4) the type checker, which is responsible
+for determining the type of every expression and statement, resolving
+the symbol for every identifier. it relies heavily on Unify and
+ClassEquality.
+
+CodeGen.scala: (PASS 5)
