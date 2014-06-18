@@ -25,22 +25,22 @@ class Jacobi : ParArray2[Jacobi] {
     val top : Array[double] = block.row(0);
     val bottom : Array[double] = block.row(block.sz1-1);
     
-    async this[wrap1(sz1-1),sz2].process(left, iter, { (arr : Array[double]) =>
-      arr.foreach_i( {(j : int) => block[0,j+1] = arr[j];} );
+    async this[wrap1(sz1-1),sz2].process(left, iter, { (b : Array2[double], arr : Array[double]) =>
+      arr.foreach_i( {(j : int) => b[0,j+1] = arr[j];} );
     });
-    async this[wrap1(sz1+1),sz2].process(right, iter, { (arr : Array[double]) =>
-      arr.foreach_i( {(j : int) => block[block.sz2-1, j+1] = arr[j];} );
+    async this[wrap1(sz1+1),sz2].process(right, iter, { (b : Array2[double], arr : Array[double]) =>
+      arr.foreach_i( {(j : int) => b[block.sz2-1, j+1] = arr[j];} );
     });
-    async this[sz1,wrap2(sz2-1)].process(bottom, iter, { (arr : Array[double]) =>
-      arr.foreach_i( {(i : int) => block[i+1,0] = arr[i];} );
+    async this[sz1,wrap2(sz2-1)].process(bottom, iter, { (b : Array2[double], arr : Array[double]) =>
+      arr.foreach_i( {(i : int) => b[i+1,0] = arr[i];} );
     });
-    async this[sz1,wrap2(sz2+1)].process(top, iter, { (arr : Array[double]) =>
-      arr.foreach_i( {(i : int) => block[i+1,block.sz1-1] = arr[i];} );
+    async this[sz1,wrap2(sz2+1)].process(top, iter, { (b : Array2[double], arr : Array[double]) =>
+      arr.foreach_i( {(i : int) => b[i+1,block.sz1-1] = arr[i];} );
     });
 
     for (var i : int = 0; i < 4; i += 1)
-      wait def process(arr : Array[double], it : int, fun : (Array[double] -> unit))
-        where it == iter { fun(arr); }
+      wait def process(arr : Array[double], it : int, fun : Array2[double] -> Array[double] -> unit)
+        where it == iter { fun(block, arr); }
 
     localConv = kernel();
   }
@@ -81,7 +81,7 @@ class Jacobi : ParArray2[Jacobi] {
   }
 
   // this should not be here but the wait is not semantically checked yet
-  def process(arr : Array[double], i : int, fun : (Array[double] -> unit)) { fun(arr); }
+  def process(arr : Array[double], i : int, fun : Array2[double] -> Array[double] -> unit) { fun(block, arr); }
 }
 
 def main(args : Array[string]) {
