@@ -11,7 +11,9 @@ class Seq[T] {
 
 class Indexable[I, T] : Seq[T] {
    def foreach_i(fun : (I -> unit));
+   def [](x : I) : T;
 }
 class Indexable2[I, T] : Seq[T] {
    def foreach_i(fun : (I -> I -> unit));
+   def [](x : I, y : I) : T;
 }

@@ -9,7 +9,6 @@ class Jacobi : ParArray2[Jacobi] {
   val block_up : Array2[double];
   var localConv : boolean = false;
   var allConv : boolean = false;
-  var curIter : int = 0;
 
   def Jacobi(xdim_ : int, ydim_ : int, bz1 : int, bz2 : int) {
     ParArray2[Jacobi](xdim_, ydim_);
@@ -71,6 +70,7 @@ class Jacobi : ParArray2[Jacobi] {
 
   def computeTillConverge() {
     var started : boolean = false;
+    var curIter : int = 0;
     while (!allConv) {
       sync(async iteration(curIter));
       curIter += 1;
