@@ -7,6 +7,9 @@ class Seq[T] {
 
    def foreach(fun : (T -> unit));
    def map[M](fun : (T -> M)) : Seq[M];
+   //def take(n : int) : Seq[T];
+   //def takeRight(n : int) : Seq[T];
+   //def takeWhile(p : (T -> boolean)) : Seq[T];
 }
 
 class Indexable[I, T] : Seq[T] {

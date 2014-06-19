@@ -40,6 +40,18 @@ class Array[T] : Indexable[int, T] {
       fun(i);
   }
 
+  def takeWhile(p : (T -> boolean)) : Seq[T] {
+    var count : int = 0;
+    var found : boolean = true;
+    for (val i : int = 0; i < size && found; i += 1)
+      if (p(index(i))) count += 1;
+      else found = false;
+    val na : Array[T] = Array[T](count);
+    for (val i : int = 0; i < size && found; i += 1)
+      if (p(index(i))) na[i] = index(i);
+    return na;
+  }
+
   def map[M](fun : (T -> M)) : Seq[M] {
     var newArr : Array[M] = Array[M](size);
     for (val i : int = 0; i < size; i += 1) {
