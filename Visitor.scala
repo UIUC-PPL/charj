@@ -108,6 +108,12 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         visitExpressionForStmt(expr1, t);
         visitExpressionForStmt(expr2, t);
       }
+      case t@WaitStmt(funs,expr1,stmts) => {
+        maybeVisit(tree)
+        traverseTree(funs)
+        traverseTree(stmts)
+        if (!expr1.isEmpty) visitExpressionForStmt(expr1.get, t);
+      }
       case _ => maybeVisit(tree)
     }
   }
@@ -135,6 +141,7 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
       case ForStmt(_, expr, _, stmt) => visit(expr, stmt)
       case WhileStmt(expr, _) => visit(expr, tree)
       case ReturnStmt(Some(expr)) => visit(expr, tree)
+      case WaitStmt(_,Some(expr),_) => visit(expr, tree)
       case _ => ;
     }
   }

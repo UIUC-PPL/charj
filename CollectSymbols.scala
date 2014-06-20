@@ -41,6 +41,7 @@ class Collector(tree : Stmt) {
   def newContext(context : Context, stmt : Stmt, isOrdered : Boolean) = new Context(Some(context), isOrdered)
 
   var enclosingClass : ClassStmt = null
+  var enclosingWait : WaitStmt = null
 
   def traverseTree(tree : Stmt, context : Context) {
     tree.enclosingClass = enclosingClass
@@ -78,8 +79,19 @@ class Collector(tree : Stmt) {
         traverseTree(t.lst, con)
         enclosingClass = null
       }
+      case t@WaitStmt(defs, where, lst) => {
+        enclosingWait = t
+        val wcon = newContext(context, tree, true)
+        if (enclosingClass == null)
+          SemanticError("wait def must be inside a class", t.pos);
+        val defcon = enclosingClass.context
+        for (d <- defs) traverseTree(d, context)
+        if (!where.isEmpty) traverseExpr(where.get, t, wcon)
+        traverseTree(lst, wcon)
+        enclosingWait = null
+      }
       case t@DefStmt(name, _, nthunks, ret, lst) => {
-        val con = newContext(context, tree, true)
+        val con = if (enclosingWait == null) newContext(context, tree, true) else enclosingWait.context
         val isAbstract = lst == EmptyStmt()
         t.isAbstract = isAbstract
         val isConstructor = t.enclosingClass != null && t.enclosingClass.name == name
@@ -102,7 +114,10 @@ class Collector(tree : Stmt) {
           t.sym.isCons = true
           t.sym.classCons = enclosingClass
         } else {
-          t.sym = addDef(t.gens, context, tree, con, name, tree.pos, isAbstract, arity)
+          if (enclosingWait != null)
+            t.sym = addDef(t.gens, enclosingClass.context, tree, con, name, tree.pos, isAbstract, arity)
+          else
+            t.sym = addDef(t.gens, context, tree, con, name, tree.pos, isAbstract, arity)
         }
         if (t.enclosingClass != null)
           con.sym = enclosingClass.sym

@@ -1,12 +1,11 @@
 include "system.cp";
-include "parallel.cp";
 
 class Fib {
   def Fib() { }
   
   def compute(n : int) : int {
     if (n > 1)
-      return sync(async Fib().compute() +
+      return sync(async Fib().compute(n-1) +
                   async Fib().compute(n-2));
     else
       return n;
@@ -14,5 +13,5 @@ class Fib {
 }
 
 def main() {
-  val result : int = sync(async Fib().compute(10));
+  val result : int = sync async Fib().compute(10);
 }

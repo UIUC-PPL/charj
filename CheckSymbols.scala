@@ -405,7 +405,6 @@ object Checker {
         if (verbose) println("determining type for FunExpr: " + name)
         val exprs = if (param.isEmpty) List() else param.get
         val types : List[ResolvedType] = exprs.map(_.sym)
-        //val (sym, term, con) = findIdentType(cls, null, cls.context, name.dropRight(1), null)
         val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
 
         if (verbose) println(expr.pos + ": function call: " + name + ", gens = " + gens + ", sym = " + sym)
@@ -442,13 +441,12 @@ object Checker {
             expr.sym = resolveClassType(Type(intType),expr,cls)
         }
       }
-      case StrExpr(lst) => {
-        if (verbose) println("strexpr determine type of: " + lst)
-
+      case t@StrExpr(lst) => {
         val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
+        if (verbose) println("strexpr determine type of: " + lst + ", context = " + con)
 
         if (verbose) println("strexpr push over: " + expr.sym)
-        val (sym2,_,_) = findIdentType(cls, null, con, lst, sym)
+        val (sym2,_,_) = findIdentType(t, null, con, lst, sym)
         val (nt, ncon) = findNew(sym2,expr,sym2.getBindings())
         val sym3 = resolveAnySymbol(Type(nt), expr, null)
 
@@ -532,7 +530,7 @@ object Checker {
     cur.sym = ret
   }
 
-  def findIdentType(cls : Stmt, t : Term, context : Context, n : List[String],
+  def findIdentType(cls : Expression, t : Term, context : Context, n : List[String],
                     sym : ResolvedType) : (ResolvedType, Term, Context) = {
     if (n.size != 0 && verbose) println("recursive findIdentType: " + n + ", context = " + context +
                                         " bindings = " + (if (sym != null) sym.getBindings() else List()))
@@ -680,7 +678,7 @@ object Checker {
     }
   }
 
-  def findDeclType(context : Context, cls : Stmt, ident : String,
+  def findDeclType(context : Context, cls : Expression, ident : String,
                    bindings : List[(Term,Term)] = List()) : (ResolvedType, Term, Context) = {
     if (context == null) SemanticError("trying to search null context for: " + ident, cls.pos)
 
@@ -688,7 +686,7 @@ object Checker {
 
     // ensure it was defined before if it's the same context
     def identity(str : String, t : Positional, c : Context) : Boolean =
-      str == ident && (t.pos < cls.pos || t.pos == cls.pos || cls.context != c || !c.ordered)
+      str == ident && (t.pos < cls.pos || t.pos == cls.pos || context != c || !c.ordered)
 
     val sym = context.resolve{a : (Symbol,Context) => a._1 match {
       case t@DeclSymbol(str, _) => identity(str, t, a._2)
