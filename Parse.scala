@@ -83,7 +83,7 @@ object Parse extends StandardTokenParsers with App {
 
   def backEnd(tree : Stmt) {
     if (verbose) println("--- starting back end generation ---")
-    def printer(s : String) : Unit = println(s)
+    def printer(s : String) : Unit = print(s)
     val gen = new CodeGen(tree, printer);
     gen.start()
     if (verbose) println("--- generation complete ---")
