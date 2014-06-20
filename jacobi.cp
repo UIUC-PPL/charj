@@ -76,14 +76,8 @@ class Jacobi : ParArray2[Jacobi] {
   def computeTillConverge() {
     var curIter : int = 0;
     async startReduction(^curIter);
-    while (!allConv) {
-      sync(async iteration(curIter));
-      curIter += 1;
-    }
-    while (curIter < sync(finalIter)) {
-      sync(async iteration(curIter));
-      curIter += 1;
-    }
+    for (; allConv || curIter < sync finalIter; curIter += 1)
+      sync (async iteration(curIter));
   }
 
   // this should not be here but the wait is not semantically checked yet
