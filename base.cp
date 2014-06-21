@@ -1,6 +1,9 @@
-class #string { }
-class #char { }
-
+class #string {
+  def gen() : string { return "string"; }
+}
+class #char {
+  def gen() : string { return "char"; }
+}
 class #int {
   def gen() : string { return "int32_t"; } 
 }
