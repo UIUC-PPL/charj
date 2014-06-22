@@ -222,7 +222,7 @@ object Parse extends StandardTokenParsers with App {
   )
 
   def forStmt = positioned(
-    "for" ~ "(" ~ repsep(varStmt, ",") ~ ";" ~ expression ~ ";" ~ repsep(assignStmt, ",") ~ ")" ~ semiStmt
+    "for" ~ "(" ~ repsep(varStmt, ",") ~ ";" ~ expression.? ~ ";" ~ repsep(assignStmt, ",") ~ ")" ~ semiStmt
     ^^ { case _ ~ _ ~ varStmts ~ _ ~ expr1 ~ _ ~ assign ~ _ ~ stmt => ForStmt(varStmts, expr1, assign, stmt) }
   )
 
@@ -271,10 +271,10 @@ object Parse extends StandardTokenParsers with App {
     ^^ { case ident ~ gen ~ _ ~ params ~ _ => FunExpr(List(ident), if (gen.isEmpty) List() else gen.get, params) }
   )
 
-  def newExpr = positioned(
-    "new" ~ ident ~ generic.? ~ "(" ~ parameters.? ~ ")"
-    ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(List(ident), if (generic.isEmpty) List() else generic.get, params) }
-  )
+  // def newExpr = positioned(
+  //   "new" ~ ident ~ generic.? ~ "(" ~ parameters.? ~ ")"
+  //   ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(List(ident), if (generic.isEmpty) List() else generic.get, params) }
+  // )
 
   def parameters = repsep(expression, ",")
 
@@ -290,11 +290,11 @@ object Parse extends StandardTokenParsers with App {
     | "async" ~> expression      ^^ { case expr   => AsyncExpr(expr) }
     | "sync"  ~> expression      ^^ { case expr   => SyncExpr(expr) }
     | anonFunc                   ^^ { case expr   => DefExpr(expr) }
-    | newExpr
+    //| newExpr
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }
     | "null"                     ^^ { case _      => Null() }
-    | ident                      ^^ { case ident  => StrExpr(List(ident)) }
+    | ident                      ^^ { case ident  => StrExpr(ident) }
     | "-" ~> expression          ^^ { case expr   => NegExpr(expr) }
     | numericLit                 ^^ { case lit    => NumLiteral(lit) }
     | stringLit                  ^^ { case lit    => StrLiteral(lit) }

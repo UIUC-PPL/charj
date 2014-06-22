@@ -86,7 +86,7 @@ class StmtVisitor[U >: Stmt](tree : Stmt, filter : U => Boolean, visit : U => Un
         traverseTree(decls)
         traverseTree(cont)
         traverseTree(stmt)
-        visitExpressionForStmt(expr1, t);
+        if (!expr1.isEmpty) visitExpressionForStmt(expr1.get, t);
       }
       case t@WhileStmt(expr1, stmt) => {
         maybeVisit(tree)
@@ -138,7 +138,7 @@ class ExprVisitor[U >: Expression](tree : Stmt, visit2 : (U, Stmt) => Unit) {
       // hack to make sure that the stmt used to place the expr
       // (positionally) looks like it lexigraphically follows the
       // decls
-      case ForStmt(_, expr, _, stmt) => visit(expr, stmt)
+      case ForStmt(_, Some(expr), _, stmt) => visit(expr, stmt)
       case WhileStmt(expr, _) => visit(expr, tree)
       case ReturnStmt(Some(expr)) => visit(expr, tree)
       case WaitStmt(_,Some(expr),_) => visit(expr, tree)
@@ -195,10 +195,10 @@ class PureExprVisitor[U >: Expression](expr : Expression, s : Stmt, visit2 : (U,
       case t@NotExpr(l) => { visit(l, s); visit2(t, s) }
       case t@NegExpr(l) => { visit(l, s); visit2(t, s) }
       case t@StrExpr(_) => visit2(t, s)
-      case t@NewExpr(_, _, params) => {
-        if (!params.isEmpty) for (i <- params.get) visit(i, s)
-        visit2(t, s)
-      }
+      // case t@NewExpr(_, _, params) => {
+      //   if (!params.isEmpty) for (i <- params.get) visit(i, s)
+      //   visit2(t, s)
+      // }
       case t@True() => visit2(t, s)
       case t@False() => visit2(t, s)
       case t@Null() => visit2(t, s)

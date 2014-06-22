@@ -52,7 +52,7 @@ case class StmtList(lst : List[Stmt]) extends Stmt {
 case class ExprStmt(expr : Expression) extends Stmt
 case class AssignStmt(lval : Expression, op : AssignOp, rval : Expression) extends Stmt with HasResolvedType
 case class IfStmt(cond : Expression, expr1 : Stmt, expr2 : Option[Stmt]) extends Stmt
-case class ForStmt(decls : List[Stmt], expr1 : Expression, cont : List[Stmt], stmt : Stmt) extends Stmt {
+case class ForStmt(decls : List[Stmt], expr1 : Option[Expression], cont : List[Stmt], stmt : Stmt) extends Stmt {
   override def getName() = pos + "-> for"
 }
 case class WhileStmt(expr1 : Expression, stmt : Stmt) extends Stmt {
@@ -73,7 +73,8 @@ case class Type(var full : Term) extends Stmt {
 
 trait HasResolvedType { var sym : ResolvedType = null }
 trait HasContext { var context : Context = null }
-abstract class Expression extends Positional with HasResolvedType with HasContext
+trait HasResolution { var res : ResolutionType = null }
+abstract class Expression extends Positional with HasResolvedType with HasContext with HasResolution
 
 case class AsyncExpr(e : Expression) extends Expression
 case class SyncExpr(e : Expression) extends Expression
@@ -100,10 +101,10 @@ case class DefExpr(d : DefStmt) extends Expression
 case class FunExpr(name : List[String], var generic : List[Term], param : Option[List[Expression]]) extends Expression
 case class NotExpr(el : Expression) extends Expression
 case class NegExpr(el : Expression) extends Expression
-case class StrExpr(name : List[String]) extends Expression
-case class NewExpr(name : List[String],
-                   generic : List[Term],
-                   param : Option[List[Expression]]) extends Expression
+case class StrExpr(name : String) extends Expression
+// case class NewExpr(name : List[String],
+//                    generic : List[Term],
+//                    param : Option[List[Expression]]) extends Expression
 case class True() extends Expression
 case class False() extends Expression
 case class Null() extends Expression

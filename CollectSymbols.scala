@@ -164,7 +164,7 @@ class Collector(tree : Stmt) {
         if (enclosingClass != null)
           con.sym = enclosingClass.sym
         t.context = con
-        traverseExpr(expr1, t, con)
+        if (!expr1.isEmpty) traverseExpr(expr1.get, t, con)
         traverseTree(decls, con)
         traverseTree(cont, con)
         traverseTree(stmt, con)

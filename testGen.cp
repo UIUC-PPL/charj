@@ -4,8 +4,11 @@ class Test {
   val x : int = 10;
   var y : int = 0;
 
-  def test(x : int, y : int) {
-  
+  def test(x1 : int, y2 : int) : int {
+    for (val i : int = 0, val j : int; i < 10 ; i+= 1) {
+      val x3 : int = 20;
+      x = 10;
+    }
   }
 
   def xxx(x : boolean) {
@@ -22,6 +25,9 @@ class Test {
       
     }
 
+    while (x1 < x2) {
+      x2 = 10;
+    }
   }
 }
 

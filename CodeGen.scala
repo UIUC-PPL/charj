@@ -38,6 +38,10 @@ class CodeGen(tree : Stmt, out : String => Unit) {
     out("\n")
   }
 
+  def genCondGoto() = genImm() + "_condition"
+  def genBodyGoto() = genImm() + "_body"
+  def genEpiGoto() = genImm() + "_forepi"
+
   def genClassName(n : String) = "__concrete_" + n
   def genDeclName(n : String, m : Boolean) = (if (m) "__var_" else "__val_") + n
   def genDefName(cl : String, n : String) = "__def_" + cl + "_" + n
@@ -178,6 +182,66 @@ class CodeGen(tree : Stmt, out : String => Unit) {
           outln("}")
         }
       }
+      case t@AssignStmt(lval,op,rval) => {
+        val lexpr = genExpr(lval, tree)
+        val rexpr = genExpr(rval, tree)
+        outln(lexpr + " " + genAssignOP(op) + " " + rexpr)
+      }
+      case t@WhileStmt(expr,stmt) => {
+        val outCond = genExpr(expr, tree)
+        outln("while (" + outCond + ") {")
+        tab()
+        genDefBody(stmt)
+        untab()
+        outln("}")
+      }
+      case t@ReturnStmt(expr) => {
+        if (expr.isEmpty) {
+          outln("return;")
+        } else {
+          val outCond = genExpr(expr.get, tree)
+          outln("return" + outCond + ";")
+        }
+      }
+      case t@ForStmt(decls, expr1, cont, stmt) => {
+        outln("{")
+        tab()
+
+        for (d <- decls) {
+          d match {
+            case t@DeclStmt(mutable,name,typ,expr) => {
+              var assign = " /* no assignment */ "
+              if (!expr.isEmpty) assign = " = " + genExpr(expr.get, tree)
+              outln(genType(typ, false) + " " +  genDeclName(name, mutable) + assign + ";")
+            }
+          }
+        }
+
+        val condGoto = genCondGoto()
+        outln(condGoto + ":")
+
+        val bodyGoto = genBodyGoto()
+        val epiGoto = genEpiGoto()
+        if (expr1.isEmpty) 
+          outln("goto " + bodyGoto + ";")
+        else {
+          val condExpr = genExpr(expr1.get, tree)
+          outln("if (" + condExpr + ") goto " + bodyGoto + ";")
+          outln("else goto " + epiGoto + ";")
+        }
+
+        tab()
+        outln(bodyGoto + ":")
+        genDefBody(stmt)
+        for (x <- cont) genDefBody(x)
+        outln("goto " + condGoto  + ";")
+
+        untab()
+
+        outln(epiGoto + ":")
+        untab()
+        outln("}")
+      }
       case _ => ;
     }
   }
@@ -221,7 +285,14 @@ class CodeGen(tree : Stmt, out : String => Unit) {
 
   def outputImmStrExpr(id : String, x : Expression) : String = {
     val ii = genImm()
-    outln(genRType(x.sym) + " " + ii + " = "  + ";")
+    if (x.res == null)
+      SemanticErrorNone("backend code gen error, expression has no resolution")
+    val name = x.res match {
+      case Immediate(_,_,_) => genDeclName(id, false)
+      case ClassScope(_,_,_) => genObjectDefInput + "->" + genDeclName(id, false)
+      case _ => ""
+    }
+    outln(genRType(x.sym) + "& " + ii + " = " + name + ";")
     ii
   }
 
@@ -232,7 +303,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       case t@True() => outputImmLiteral(t)
       case t@False() => outputImmLiteral(t)
       case t@Null() => outputImmLiteral(t)
-      case t@StrExpr(head::_) => outputImmStrExpr(head, t)
+      case t@StrExpr(str) => outputImmStrExpr(str, t)
       case MulExpr(l, r) => travBinary(l, r, expr, "*")
       case DivExpr(l, r) => travBinary(l, r, expr, "/")
       case ModExpr(l, r) => travBinary(l, r, expr, "%")
@@ -272,5 +343,11 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       case Some(x@Type(Bound(t))) => systemTypes.get(t).get
       case _ => "void"
     }
+  }
+
+  def genAssignOP(op : AssignOp) = op match {
+    case Equal() => "="
+    case PEqual() => "+="
+    case MEqual() => "-="
   }
 }

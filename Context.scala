@@ -8,6 +8,11 @@ object BaseContext {
   var verbose : Boolean = false
 }
 
+abstract class ResolutionType
+case class Immediate(n : Int, c : Context, s : Symbol) extends ResolutionType
+case class ClassScope(n : Int, c : Context, s : Symbol) extends ResolutionType
+case class ConstructScope(n : Int, c : Context, s : Symbol) extends ResolutionType
+
 class Context(parent : Option[Context], isOrdered : Boolean) {
   import scala.collection.mutable.{ListBuffer,ArrayBuffer}
   var sym : Symbol = null
@@ -44,7 +49,8 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
   }
 
   def resolve(test : ((Symbol, Context)) => Boolean,
-              binding : List[(Term,Term)] = List()) : Option[(Symbol,List[(Term,Term)])] = {
+              binding : List[(Term,Term)] = List(),
+              count : Int = 0) : Option[(Symbol,List[(Term,Term)],ResolutionType)] = {
     //println("resolve: sym = " + sym + ", binding = " + binding)
     val lookup = lst.find(a => test((a._1, this)))
     if (lookup.isEmpty) {
@@ -64,7 +70,7 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
 
         // try parent classes to resolve symbol
         if (optParent.isEmpty) {
-          var subtype : Option[(Symbol,List[(Term,Term)])] = None
+          var subtype : Option[(Symbol,List[(Term,Term)],ResolutionType)] = None
 
           extensions.foreach(ext => {
             println("\t\t --- --- searching extensions: " + ext)
@@ -77,10 +83,13 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
           return optParent
         }
       } else {
-        return Some(cons.get._1, binding)
+        return Some(cons.get._1, binding, ConstructScope(count, this, cons.get._1))
       }
     } else {
-      return Some(lookup.get._1, binding)
+      return Some(lookup.get._1, binding,
+                  (if (isOrdered) Immediate(count, this, lookup.get._1)
+                   else ClassScope(count, this, lookup.get._1))
+                  )
     }
   }
 

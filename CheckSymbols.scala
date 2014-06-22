@@ -115,10 +115,12 @@ object Checker {
           SemanticError("while statement condition must be of type boolean", t.pos)
       }
       case t@ForStmt(decls, expr1, cont, stmt) => {
-        if (expr1.sym == null)
-          SemanticError("for statement condition type not determined", t.pos)
-        if (!ClassEquality.equal(expr1.sym, resolveClassType(Type(booleanType),tree,tree)))
-          SemanticError("for statement condition must be of type boolean", t.pos)
+        if (!expr1.isEmpty) {
+          if (expr1.get.sym == null)
+            SemanticError("for statement condition type not determined", t.pos)
+          if (!ClassEquality.equal(expr1.get.sym, resolveClassType(Type(booleanType),tree,tree)))
+            SemanticError("for statement condition must be of type boolean", t.pos)
+        }
       }
       case t@DeclStmt(_, _, optType, Some(expr1)) => {
         if (verbose) println(t.pos + ": check decl stmt: expr1 sym = " + expr1.sym)
@@ -441,12 +443,12 @@ object Checker {
             expr.sym = resolveClassType(Type(intType),expr,cls)
         }
       }
-      case t@StrExpr(lst) => {
+      case t@StrExpr(str) => {
         val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
-        if (verbose) println("strexpr determine type of: " + lst + ", context = " + con)
+        if (verbose) println("strexpr determine type of: " + str + ", context = " + con)
 
         if (verbose) println("strexpr push over: " + expr.sym)
-        val (sym2,_,_) = findIdentType(t, null, con, lst, sym)
+        val (sym2,_,_) = findIdentType(t, null, con, List(str), sym)
         val (nt, ncon) = findNew(sym2,expr,sym2.getBindings())
         val sym3 = resolveAnySymbol(Type(nt), expr, null)
 
@@ -698,6 +700,9 @@ object Checker {
 
     if (sym.isEmpty) SemanticError("identifier \"" + ident + "\" can not be found", cls.pos)
 
+    // set the resolution type for the identifier
+    cls.res = sym.get._3
+
     val d = sym.get._1.asInstanceOf[HasDeclType]
     val (nt, ncon) = findNew(d.declType,cls,sym.get._2 ++ bindings)
 
@@ -726,7 +731,7 @@ object Checker {
 
   def maybeResolveSingleClass(t : Type, pos : Positional, tree : Stmt) : Option[SingleType] = {
     // @todo for now namespaces for types is not supported
-    var sym : Option[(Symbol,List[(Term,Term)])] = None
+    var sym : Option[(Symbol,List[(Term,Term)],ResolutionType)] = None
     val con : Context = (if (tree == null) BaseContext.context else tree.context)
     var bindings : List[(Term,Term)] = if (con.sym != null && con.sym.isInstanceOf[SingleType]) con.sym.asInstanceOf[SingleType].bindings else List()
     sym = con.resolve{a : (Symbol,Context) => a._1 match {
