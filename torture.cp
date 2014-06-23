@@ -4,8 +4,8 @@ include "system.cp";
 include "option.cp";
 
 class Linked[T] {
-  val cur : Ref[T];
-  val next : Linked[T];
+  var cur : Ref[T];
+  var next : Linked[T];
 
   def Linked(cur_ : Ref[T], next_ : Linked[T]) {
     cur = cur_;
@@ -18,8 +18,8 @@ class Linked[T] {
 }
 
 class ListTest[T] : SeqTest[T, Linked[T]] {
-  val front : Ref[Linked[T]] = null;
-  val back : Ref[Linked[T]] = null;
+  var front : Ref[Linked[T]] = null;
+  var back : Ref[Linked[T]] = null;
   var size : int = 0;
 
   def ListTest() { }
@@ -39,7 +39,7 @@ class ListTest[T] : SeqTest[T, Linked[T]] {
   def pop() : Ref[T] {
     size -= 1;
     if (front.deref().cur == back.deref().cur) {
-      val ret : Ref[T] = front.deref().cur;
+      var ret : Ref[T] = front.deref().cur;
       front = null;
       back = null;
       return ret;
@@ -83,25 +83,25 @@ class Iterable[T, U] {
 class Mapper[X, Y, U] : SeqTest[X, U] {
   def map(x : X) : Y;
   def method() {
-    val a : Ref[X] = first();
+    var a : Ref[X] = first();
   }
 }
 
 class MapElem[E1, E2] {
-  val e1 : E1;
+  var e1 : E1;
   var e2 : E2;
   
   def MapElem(e1_ : E1, e2_ : E2) { e1 = e1_; e2 = e2_; }
 }
 
 class Map[A, B] : SeqTest[A, MapElem[A, B]] {
-  val lst : ListTest[MapElem[A, B]] = ListTest[MapElem[A, B]]();
+  var lst : ListTest[MapElem[A, B]] = ListTest[MapElem[A, B]]();
 
   def Map() {}
 
   def find(a : A) : Option[B] {
     while (lst.hasNext()) {
-      val elm : MapElem[A, B] = lst.next();
+      var elm : MapElem[A, B] = lst.next();
       if (elm.e1 == a) return Some[B](elm.e2);
     }
     return None[B]();
@@ -113,9 +113,9 @@ class Map[A, B] : SeqTest[A, MapElem[A, B]] {
   def next() : A {
   }
 
-  def setValue(a : A, b : B) {
+  def setVarue(a : A, b : B) {
     while (lst.hasNext()) {
-      val elm : MapElem[A, B] = lst.next();
+      var elm : MapElem[A, B] = lst.next();
       if (elm.e1 == a) elm.e2 = b;
     }
   }
@@ -124,7 +124,7 @@ class Map[A, B] : SeqTest[A, MapElem[A, B]] {
     if (find(a) == None[B]()) {
       lst.push(Ref[MapElem[A, B]](MapElem[A, B](a, b)));
     } else {
-      setValue(a, b);
+      setVarue(a, b);
     }
   }
 
@@ -136,24 +136,24 @@ class Map[A, B] : SeqTest[A, MapElem[A, B]] {
 
 class Driver[T] {
   def test111() {
-    val xx : Map[int,unit] = Map[int,unit]();
-    val ss : Some[int] = Some[int](xx.lst.next().e1);
-    val mm : int = Ref[int](xx.lst.front.t.cur.t.e1).deref();
-    val yy : Option[int] = ss;
-    val zz : ListTest[int] = ListTest[int]();
-    val nn : int = zz.front.deref().getT().deref();
+    var xx : Map[int,unit] = Map[int,unit]();
+    var ss : Some[int] = Some[int](xx.lst.next().e1);
+    var mm : int = Ref[int](xx.lst.front.t.cur.t.e1).deref();
+    var yy : Option[int] = ss;
+    var zz : ListTest[int] = ListTest[int]();
+    var nn : int = zz.front.deref().getT().deref();
   }
 
   def test() {
-    val lst : ListTest[boolean] = ListTest[boolean]();
-    val i : int = 10;
-    val x : Ref[int] = Ref[int](i);
-    val y : Ref[boolean] = Ref[boolean](true);
+    var lst : ListTest[boolean] = ListTest[boolean]();
+    var i : int = 10;
+    var x : Ref[int] = Ref[int](i);
+    var y : Ref[boolean] = Ref[boolean](true);
     //lst.push(x);
     lst.push(y);
     i += 10;
-    val i2 : Ref[boolean] = lst.pop();
-    val i3 : boolean = i2.deref();
+    var i2 : Ref[boolean] = lst.pop();
+    var i3 : boolean = i2.deref();
   }
 }
 

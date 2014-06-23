@@ -5,7 +5,7 @@ include "list.cp";
 include "math.cp";
 
 class Jacobi : ParArray2[Jacobi] {
-  val block : Array2[double];
+  var block : Array2[double];
   val block_up : Array2[double];
   var localConv : boolean = false;
   var allConv : boolean = false;
@@ -48,7 +48,7 @@ class Jacobi : ParArray2[Jacobi] {
   }
 
   def kernel() : boolean {
-    val maxdiff : double = 0.0;
+    var maxdiff : double = 0.0;
     for (var i : int = 1; i < block.sz1; i += 1)
       for (var j : int = 1; j < block.sz2; j += 1) {
         block_up[i,j] = (block[i+1,j] + block[i-1,j] + block[i,j+1] + block[i,j-1] + block[i,j])*0.2;
