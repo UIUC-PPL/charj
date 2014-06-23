@@ -116,6 +116,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         }
       }
       case t@DeclStmt(mutable,name,typ,expr) => {
+        //println("gen decl: " + t + ", b = " + b)
         if (name != "this")
           outln(genType(typ, b) + " " + genDeclName(name, t.enclosingClass.name) + ";")
       }
@@ -252,8 +253,6 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         outln("}")
 
         outln(epiGoto + ":")
-        untab()
-        outln("}")
       }
       case t@ReturnStmt(expr) => {
         if (expr.isEmpty) {
@@ -331,7 +330,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       case NumLiteral(s) => outln(genRType(lit.sym) + " " +  ii + " = " + s + ";")
       case True() => outln(genRType(lit.sym) + " " +  ii + " = true ;")
       case False() => outln(genRType(lit.sym) + " " +  ii + " = false ;")
-      case Null() => outln(genRType(lit.sym) + " " +  ii + " = null;")
+      case Null() => outln("void* " +  ii + " = null;")
       case _ => ""
     }
     ii
@@ -383,7 +382,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
             }
             case BaseScope(_,_,_) => genDefName("", name)
           }
-          call + "(" + initial + ins.mkString(",") + ");"
+          call + "(" + initial + ins.mkString(",") + ")"
         }
       }
       case t@DefExpr(d) => {
