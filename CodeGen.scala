@@ -104,6 +104,8 @@ class CodeGen(tree : Stmt, out : String => Unit) {
           tab()
           if (!parent.isEmpty)
             generateParentSketchRecur(t.context.extensions(0))
+          else
+            outln("int32_t virtual_object_id = 0;")
           genInner(lst, b, _.isInstanceOf[DeclStmt])
           untab()
           outln("};")
@@ -125,6 +127,8 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   def generateParentSketchRecur(ty : SingleType) {
     if (!ty.cs.stmt.parent.isEmpty)
       generateParentSketchRecur(ty.cs.stmt.context.extensions(0))
+    else
+      outln("int32_t virtual_object_id = 0;")
     genInner(ty.cs.stmt.lst, ty.bindings, _.isInstanceOf[DeclStmt])
     //outln("parent sketch for " + ty)
   }
