@@ -84,5 +84,5 @@ class Jacobi : ParArray2[Jacobi] {
 def main(args : Array[string]) {
   val x : Jacobi = Jacobi(10, 10, 100, 100);
   sync (async x.computeTillConverge());
-  exitProg(0);
+  exit(0);
 }

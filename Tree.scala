@@ -98,13 +98,11 @@ case class DotExpr(el : Expression, er : Expression) extends Expression // .
 case class NeqExpr(el : Expression, er : Expression) extends Expression // <>
 case class AopExpr(el : Expression, er : Expression, op : String) extends Expression // arbitrary operator
 case class DefExpr(d : DefStmt) extends Expression
-case class FunExpr(name : List[String], var generic : List[Term], param : Option[List[Expression]]) extends Expression
+case class FunExpr(name : String, var generic : List[Term], param : Option[List[Expression]]) extends Expression
 case class NotExpr(el : Expression) extends Expression
 case class NegExpr(el : Expression) extends Expression
 case class StrExpr(name : String) extends Expression
-// case class NewExpr(name : List[String],
-//                    generic : List[Term],
-//                    param : Option[List[Expression]]) extends Expression
+case class NewExpr(e : Expression) extends Expression
 case class True() extends Expression
 case class False() extends Expression
 case class Null() extends Expression

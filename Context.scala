@@ -10,7 +10,8 @@ object BaseContext {
 
 abstract class ResolutionType
 case class Immediate(n : Int, c : Context, s : Symbol) extends ResolutionType
-case class ClassScope(n : Int, c : Context, s : Symbol) extends ResolutionType
+case class ClassScope(n : Int, c : Context, s : Symbol, name : String) extends ResolutionType
+case class BaseScope(n : Int, c : Context, s : Symbol) extends ResolutionType
 case class ConstructScope(n : Int, c : Context, s : Symbol) extends ResolutionType
 
 class Context(parent : Option[Context], isOrdered : Boolean) {
@@ -19,6 +20,7 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
   var lst : ListBuffer[(Symbol, Stmt, Context)] = ListBuffer()
   var extensions : ArrayBuffer[SingleType] = ArrayBuffer()
   val ordered = isOrdered
+  var name = ""
 
   def condSyms(sym1 : Symbol, sym2 : Symbol) : Boolean = {
     (sym1,sym2) match {
@@ -66,7 +68,7 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
       })
 
       if (cons.isEmpty) {
-        val optParent = if (!parent.isEmpty) parent.get.resolve(test, binding) else None
+        val optParent = if (!parent.isEmpty) parent.get.resolve(test, binding, count+1) else None
 
         // try parent classes to resolve symbol
         if (optParent.isEmpty) {
@@ -75,7 +77,7 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
           extensions.foreach(ext => {
             println("\t\t --- --- searching extensions: " + ext)
             if (subtype == None) {
-              subtype = ext.cs.context.resolve(test, ext.bindings ++ binding)
+              subtype = ext.cs.context.resolve(test, ext.bindings ++ binding, count+1)
             }
           })
           return subtype
@@ -88,7 +90,8 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
     } else {
       return Some(lookup.get._1, binding,
                   (if (isOrdered) Immediate(count, this, lookup.get._1)
-                   else ClassScope(count, this, lookup.get._1))
+                   else if (this != BaseContext.context) ClassScope(count, this, lookup.get._1, name)
+                   else BaseScope(count, this, lookup.get._1) )
                   )
     }
   }

@@ -18,7 +18,7 @@ async
 sync
 wait
 where
-new (reserved for future use)
+new
 
 Reserved Delimiters (act as white space):
 "=", "+", "-", "*", "/", "==",
@@ -80,6 +80,7 @@ opCall1 ::= "[" parameters? "]"
 mainExpr ::= funcCall |
              "async" expression |
              "sync" expression |
+             "new" expression |
              anonFunc |
              "true" | "false" | "null" |
              ident |

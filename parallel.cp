@@ -1,10 +1,5 @@
 include "system.cp";
 
-// this is a special parallel object class
-class Chare {
-
-}
-
 class ParArray2[T] : Array2[T] {
   def ParArray2(xdim : int, ydim : int) {
     sz1 = xdim;

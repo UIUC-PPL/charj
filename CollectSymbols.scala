@@ -51,6 +51,7 @@ class Collector(tree : Stmt) {
       case t@ClassStmt(name, _, _, parent, lst) => {
         val arity = t.generic.size
         val con = newContext(context, tree, false)
+        con.name = name
         t.generic = t.generic.map{ gen => {
           val newCon = new Context(None, false)
           val newGen = MVar(name + "_" + gen.asInstanceOf[MVar].t)

@@ -412,7 +412,7 @@ object Checker {
         if (verbose) println(expr.pos + ": function call: " + name + ", gens = " + gens + ", sym = " + sym)
 
         val prevBindings = if (sym != null) sym.getBindings() else List()
-        var (sym2, term2, con2) = findFunType(expr, name.last, con, types, gens, prevBindings)
+        var (sym2, term2, con2) = findFunType(expr, name, con, types, gens, prevBindings)
 
         val (nt, ncon) = findNew(sym2,expr,sym2.getBindings() ++ prevBindings)
 
@@ -442,6 +442,21 @@ object Checker {
           if (!theInt.isEmpty)
             expr.sym = resolveClassType(Type(intType),expr,cls)
         }
+      }
+      case t@NewExpr(e) => {
+        if (e.sym == null)
+          SemanticError("could not resolve type of " + e, e.pos)
+        e.sym match {
+          case SingleType(cs,binds) => {
+            val sym2 = resolveAnySymbol(Type(Fun("Ref", List(cs.t))), e, null)
+            val (nt, ncon) = findNew(sym2,expr,sym2.getBindings() ++ binds)
+            val sym3 = resolveAnySymbol(Type(nt), e, null)
+            expr.sym = sym3
+            expr.context = ncon
+          }
+          case _ => SemanticError("can not construct Ref to " + e, e.pos)
+        }
+        println("resolved newx expr to type: " + expr.sym)
       }
       case t@StrExpr(str) => {
         val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
@@ -638,6 +653,8 @@ object Checker {
       SemanticError("could not find matching function for \"" + methodName + "\"", expr.pos)
 
     println("findfunType: resolved context bindings: " + sym.get._2)
+
+    expr.res = sym.get._3
 
     // (sym.get._2): propagate the bindings from a subtype when finding the new type
     val (nt, ncon) = findNew(retType,expr,function_bindings ++ bindings ++ sym.get._2)

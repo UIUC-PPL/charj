@@ -195,10 +195,7 @@ class PureExprVisitor[U >: Expression](expr : Expression, s : Stmt, visit2 : (U,
       case t@NotExpr(l) => { visit(l, s); visit2(t, s) }
       case t@NegExpr(l) => { visit(l, s); visit2(t, s) }
       case t@StrExpr(_) => visit2(t, s)
-      // case t@NewExpr(_, _, params) => {
-      //   if (!params.isEmpty) for (i <- params.get) visit(i, s)
-      //   visit2(t, s)
-      // }
+      case t@NewExpr(l) => { visit(l, s); visit2(t, s) }
       case t@True() => visit2(t, s)
       case t@False() => visit2(t, s)
       case t@Null() => visit2(t, s)

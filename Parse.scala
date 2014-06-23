@@ -268,13 +268,8 @@ object Parse extends StandardTokenParsers with App {
 
   def funcCall = positioned(
     ident ~ generic.? ~ "(" ~ parameters.? ~ ")"
-    ^^ { case ident ~ gen ~ _ ~ params ~ _ => FunExpr(List(ident), if (gen.isEmpty) List() else gen.get, params) }
+    ^^ { case ident ~ gen ~ _ ~ params ~ _ => FunExpr(ident, if (gen.isEmpty) List() else gen.get, params) }
   )
-
-  // def newExpr = positioned(
-  //   "new" ~ ident ~ generic.? ~ "(" ~ parameters.? ~ ")"
-  //   ^^ { case _ ~ ident ~ generic ~ _ ~ params ~ _ => NewExpr(List(ident), if (generic.isEmpty) List() else generic.get, params) }
-  // )
 
   def parameters = repsep(expression, ",")
 
@@ -290,7 +285,7 @@ object Parse extends StandardTokenParsers with App {
     | "async" ~> expression      ^^ { case expr   => AsyncExpr(expr) }
     | "sync"  ~> expression      ^^ { case expr   => SyncExpr(expr) }
     | anonFunc                   ^^ { case expr   => DefExpr(expr) }
-    //| newExpr
+    | "new"   ~> expression      ^^ { case expr   => NewExpr(expr) }
     | "true"                     ^^ { case _      => True() }
     | "false"                    ^^ { case _      => False() }
     | "null"                     ^^ { case _      => Null() }
@@ -303,11 +298,24 @@ object Parse extends StandardTokenParsers with App {
     | failure("illegal start of simple expression")
   )
 
-  def opCall1 = positioned(
-    "[" ~ parameters.? ~ "]" ^^ { case _ ~ params ~ _ => FunExpr(List("[]"), List(), params) }
+  def uniOps = "#" | "^" | "?"
+
+  def uniFun : Parser[Expression] = positioned(
+    uniOps.? ~ mainExpr
+    ^^ { case op ~ ex  => if (op.isEmpty) ex else FunExpr(op.get, List(), Some(List(ex))) }
   )
+
+  def uniCall : Parser[Expression] = positioned(
+    uniFun ~ uniOps.?
+    ^^ { case ex ~ op  => if (op.isEmpty) ex else DotExpr(ex, FunExpr(op.get, List(), None)) }
+  )
+
+  def opCall1 = positioned(
+    "[" ~ parameters.? ~ "]" ^^ { case _ ~ params ~ _ => FunExpr("[]", List(), params) }
+  )
+
   def opCall : Parser[Expression] = positioned(
-    mainExpr ~ rep(opCall1)
+    uniCall ~ rep(opCall1)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, op) => DotExpr(x, op)
@@ -324,28 +332,12 @@ object Parse extends StandardTokenParsers with App {
     }
   )
 
-  def uniOps = "#" | "^" | "?"
-
-  def unaryExprPost : Parser[Expression] = positioned(
-    uniOps.? ~ dot ^^ {case Some(op) ~ x => FunExpr(List(op), List(), Some(List(x)))
-                       case _ ~ x => x}
-  )
-
-  def unaryExpr : Parser[Expression] = positioned(
-    unaryExprPost ~ rep(uniOps)
-    ^^ {
-      case el ~ rest => (el /: rest) {
-        case (x, op) => DotExpr(x, FunExpr(List(op), List(), None))
-      }
-    }
-  )
-
   def possOps = "$" | "@"
   def possOps2 = "$" | "#" | "@" | "%" | "~" | "+" | "-" | "*" | "/" | "\\"
   def opList : Parser[String] = possOps | possOps ~ opList2 ^^ { case p ~ l => p + l }
   def opList2 : Parser[String] = possOps2 | possOps2 ~ opList2 ^^ { case p ~ l => p + l }
   def opExpr : Parser[Expression] = positioned(
-    unaryExpr ~ rep(opList ~ unaryExpr)
+    dot ~ rep(opList ~ dot)
     ^^ {
       case el ~ rest => (el /: rest) {
         case (x, op ~ y) => AopExpr(x, y, op)

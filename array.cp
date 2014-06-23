@@ -6,24 +6,24 @@ include "seq.cp";
 class BLOCK[T] {
   def BLOCK(size : int) { }
   def [](index : int) : T { }
-  def subblock(offset : int, newSize : int) : BLOCK[T] { }
+  def subblock(offset : int, newSize : int) : Ref[BLOCK[T]] { }
 }
 
 class Array[T] : Indexable[int, T] {
-  val block : BLOCK[T];
+  val block : Ref[BLOCK[T]];
   val size : int;
 
   def Array(size_ : int) {
     size = size_;
-    block = BLOCK[T](size_);
+    block = new BLOCK[T](size_);
   }
 
-  def Array(b : BLOCK[T], offset : int, size_ : int) {
-    block = b.subblock(offset, size_);
+  def Array(b : Ref[BLOCK[T]], offset : int, size_ : int) {
+    block = b#.subblock(offset, size_);
     size = size_;
   }
 
-  def index(i : int) : T { return block[i]; }
+  def index(i : int) : T { return block#[i]; }
   def [](i : int) : T { return index(i); }
 
   // Seq interface
@@ -32,7 +32,7 @@ class Array[T] : Indexable[int, T] {
 
   def foreach(fun : (T -> unit)) {
     for (val i : int = 0; i < size; i += 1)
-      fun(block[i]);
+      fun(block#[i]);
   }
 
   def foreach_i(fun : (int -> unit)) {
@@ -55,21 +55,21 @@ class Array[T] : Indexable[int, T] {
   def map[M](fun : (T -> M)) : Seq[M] {
     var newArr : Array[M] = Array[M](size);
     for (val i : int = 0; i < size; i += 1) {
-      newArr[i] = fun(block[i]);
+      newArr[i] = fun(block#[i]);
     }
     return newArr;
   }
 }
 
 class Array2[T] : Indexable2[int, T] {
-  val block : BLOCK[T];
+  val block : Ref[BLOCK[T]];
   val sz1 : int;
   val sz2 : int;
 
   def Array2(sz1_ : int, sz2_ : int) {
     sz1 = sz1_;
     sz2 = sz2_;
-    block = BLOCK[T](sz1_ * sz2_);
+    block = new BLOCK[T](sz1_ * sz2_);
   }
 
   def row(i : int) : Array[T] {
@@ -83,7 +83,7 @@ class Array2[T] : Indexable2[int, T] {
     return narr;
   }
 
-  def index(i : int, j : int) : T { return block[i*sz1+j]; }
+  def index(i : int, j : int) : T { return block#[i*sz1+j]; }
   def [](i : int, j : int) : T { return index(i,j); }
 
   // Seq interface

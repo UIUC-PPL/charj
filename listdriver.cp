@@ -12,8 +12,9 @@ class Test[M] {
 }
 
 def main(args : Array[string]) {
-  val lst : List[Ref[int]] = list(^5);
-  lst.push(^10);
+  val xxx : int = 4;
+  val lst : List[Ref[int]] = list(^4);
+  lst.push(^xxx);
   val lst2 : List[Option[int]];
   val x : Some[int] = Some[int](3);
   lst2.push(x);
