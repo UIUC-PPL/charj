@@ -260,7 +260,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
           outln("return;")
         } else {
           val outCond = genExpr(expr.get)
-          outln("return" + outCond + ";")
+          outln("return " + outCond + ";")
         }
       }
       case t@ForStmt(decls, expr1, cont, stmt) => {
