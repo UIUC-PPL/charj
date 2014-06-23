@@ -20,14 +20,14 @@ class Parent : Base[boolean] {
 }
 
 class Test : Parent {
-  val x : int = 10;
+  var x : int = 10;
   var y : int = 0;
   var xtf : Base[int] = Base[int]();
   var fy : Base[boolean];
   var fx : Base[int];
 
   def test(x1 : int, y2 : int) : int {
-    for (val i : int = 0, val j : int; i < 10 ; i+= 1) {
+    for (var i : int = 0, val j : int; i < 10 ; i+= 1) {
       val x3 : int = 20;
       x = 10;
     }
