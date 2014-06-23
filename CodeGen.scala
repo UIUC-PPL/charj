@@ -55,8 +55,8 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   def genBodyGoto() = genImm() + "_body"
   def genEpiGoto() = genImm() + "_epi"
   def genClassName(t : ClassStmt, b : List[(Term,Term)]) = genType(Some(t.getType()), b)
-  def genDeclName(n : String, cl : String, m : Boolean) = (if (m) "__var_" else "__val_") + "_" + cl + "_" + n
-  def genDeclName(n : String, m : Boolean) = (if (m) "__var_" else "__val_") + n
+  def genDeclName(n : String, cl : String) = "__decl_" + "_" + cl + "_" + n
+  def genDeclName(n : String) = "__decl_" + n
   def genDefName(cl : String, n : String) = "__def_" + cl + "_" + n
   def genInner(tree : List[Stmt], b : List[(Term,Term)], fun : Stmt => Boolean) {
     for (t <- tree) if (fun(t)) genClassAll(b)(t)
@@ -117,7 +117,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       }
       case t@DeclStmt(mutable,name,typ,expr) => {
         if (name != "this")
-          outln(genType(typ, b) + " " + genDeclName(name, t.enclosingClass.name, mutable) + ";")
+          outln(genType(typ, b) + " " + genDeclName(name, t.enclosingClass.name) + ";")
       }
       case t@DefStmt(_,_,_,_,_) => genDefs(b)(t)
       case _ => ;
@@ -206,7 +206,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
           val outVar = genExpr(expr.get)
           assign = " = " + outVar
         }
-        outln(genType(typ, binds) + " " + genDeclName(name, mutable) + assign + ";")
+        outln(genType(typ, binds) + " " + genDeclName(name) + assign + ";")
       }
       case ExprStmt(e) => outln(genExpr(e))
       case t@IfStmt(cond,stmt1,ostmt2) => {
@@ -273,7 +273,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
             case t@DeclStmt(mutable,name,typ,expr) => {
               var assign = " /* no assignment */ "
               if (!expr.isEmpty) assign = " = " + genExpr(expr.get)
-              outln(genType(typ, binds) + " " +  genDeclName(name, mutable) + assign + ";")
+              outln(genType(typ, binds) + " " +  genDeclName(name) + assign + ";")
             }
           }
         }
@@ -348,8 +348,8 @@ class CodeGen(tree : Stmt, out : String => Unit) {
     //val ii = genImm()
     if (x.res == null) CodeGenError("expression has no resolution")
     val name = x.res match {
-      case Immediate(_,_,_) => genDeclName(id, false)
-      case ClassScope(_,_,_,n) => genObjectDefInput + "->" + genDeclName(id, n, false)
+      case Immediate(_,_,_) => genDeclName(id)
+      case ClassScope(_,_,_,n) => genObjectDefInput + "->" + genDeclName(id, n)
       case _ => ""
     }
     //outln(genRType(x.sym) + "& " + ii + " = " + name + ";")
@@ -377,7 +377,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
           var initial : String = ""
           if (!param.isEmpty) ins = param.get.map{genExpr(_)}
           val call = t.res match {
-            case Immediate(_,_,_) => genDeclName(name, false)
+            case Immediate(_,_,_) => genDeclName(name)
             case ClassScope(_,_,_,n) => {
               initial = genObjectDefInput + ","
               genDefName(n, name)
@@ -435,7 +435,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   }
 
   def genTypeParam(tp : TypeParam, b : List[(Term,Term)]) : String =
-    genType(Some(tp.typ), b) + " " + genDeclName(tp.name, true)
+    genType(Some(tp.typ), b) + " " + genDeclName(tp.name)
 
   def genType(typ : Option[Type], b : List[(Term,Term)]) : String = {
     typ match {
