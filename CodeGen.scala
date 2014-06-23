@@ -103,7 +103,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
           outln("struct " + genName + " { /* parent is " + parent + "*/")
           tab()
           if (!parent.isEmpty)
-            generateParentSketchRecur(t.context.extensions(0))
+            generateParentSketchRecur(t.context.extensions(0), b)
           else
             outln("int32_t virtual_object_id = 0;")
           genInner(lst, b, _.isInstanceOf[DeclStmt])
@@ -124,13 +124,12 @@ class CodeGen(tree : Stmt, out : String => Unit) {
     }
   }
 
-  def generateParentSketchRecur(ty : SingleType) {
+  def generateParentSketchRecur(ty : SingleType, b : List[(Term,Term)]) {
     if (!ty.cs.stmt.parent.isEmpty)
-      generateParentSketchRecur(ty.cs.stmt.context.extensions(0))
+      generateParentSketchRecur(ty.cs.stmt.context.extensions(0), b ++ ty.bindings)
     else
       outln("int32_t virtual_object_id = 0;")
-    genInner(ty.cs.stmt.lst, ty.bindings, _.isInstanceOf[DeclStmt])
-    //outln("parent sketch for " + ty)
+    genInner(ty.cs.stmt.lst, b ++ ty.bindings, _.isInstanceOf[DeclStmt])
   }
 
   // generate defs which will take the class as a parameter if there is one
@@ -456,7 +455,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       case Bound(x) => if (systemTypes.get(x).isEmpty) "__concrete_" + x else systemTypes.get(x).get
       case f@Fun(n, terms) => addLst(f); "__concrete_" + n + "_" + terms.map{genTerm(_)}.foldRight("___")(_+_)
       case t@Thunker(_) => "void*"
-      case _ => CodeGenError("could not generate type"); ""
+      case _ => CodeGenError("could not generate type: " + t); ""
     }
   }
 

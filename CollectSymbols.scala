@@ -92,8 +92,9 @@ class Collector(tree : Stmt) {
         enclosingWait = null
       }
       case t@DefStmt(name, _, nthunks, ret, lst) => {
+        t.enclosingWait = enclosingWait
         val con = if (enclosingWait == null) newContext(context, tree, true) else enclosingWait.context
-        val isAbstract = lst == EmptyStmt()
+        val isAbstract = lst == EmptyStmt() && enclosingWait == null
         t.isAbstract = isAbstract
         val isConstructor = t.enclosingClass != null && t.enclosingClass.name == name
         val arity = if (nthunks.isEmpty) 0 else nthunks.get.length

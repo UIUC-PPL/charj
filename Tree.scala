@@ -14,6 +14,7 @@ abstract class Stmt extends Positional with GetName {
   var context : Context = new Context(None, false)
   var enclosingClass : ClassStmt = null
   var enclosingDef : DefStmt = null
+  var enclosingWait : WaitStmt = null
 }
 
 case class WaitStmt(funs : List[DefStmt], where : Option[Expression], stmts : Stmt) extends Stmt {

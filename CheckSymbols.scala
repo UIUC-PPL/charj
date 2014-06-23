@@ -84,7 +84,7 @@ object Checker {
 
   def abstractSignatures(tree : Stmt) {
     tree match {
-      case t@DefStmt(n,_,_,_,_) if (t.enclosingClass != null && t.isAbstract) => {
+      case t@DefStmt(n,_,_,_,_) if (t.enclosingClass != null && t.isAbstract && t.enclosingWait == null) => {
         if (verbose) println(t.enclosingClass.name + ": add abstract def: " + n)
         t.enclosingClass.abstractDefs += t
       }
