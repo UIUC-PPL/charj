@@ -31,30 +31,30 @@ class Array[T] : Indexable[int, T] {
   def last() : T { return index(size-1); }
 
   def foreach(fun : (T -> unit)) {
-    for (val i : int = 0; i < size; i += 1)
+    for (var i : int = 0; i < size; i += 1)
       fun(block#[i]);
   }
 
   def foreach_i(fun : (int -> unit)) {
-    for (val i : int = 0; i < size; i += 1)
+    for (var i : int = 0; i < size; i += 1)
       fun(i);
   }
 
   def takeWhile(p : (T -> boolean)) : Seq[T] {
     var count : int = 0;
     var found : boolean = true;
-    for (val i : int = 0; i < size && found; i += 1)
+    for (var i : int = 0; i < size && found; i += 1)
       if (p(index(i))) count += 1;
       else found = false;
     val na : Array[T] = Array[T](count);
-    for (val i : int = 0; i < size && found; i += 1)
+    for (var i : int = 0; i < size && found; i += 1)
       if (p(index(i))) na[i] = index(i);
     return na;
   }
 
   def map[M](fun : (T -> M)) : Seq[M] {
     var newArr : Array[M] = Array[M](size);
-    for (val i : int = 0; i < size; i += 1) {
+    for (var i : int = 0; i < size; i += 1) {
       newArr[i] = fun(block#[i]);
     }
     return newArr;
@@ -78,7 +78,7 @@ class Array2[T] : Indexable2[int, T] {
 
   def column(i : int) : Array[T] {
     val narr : Array[T] = Array[T](sz1);
-    for (var j : int = 0; i < sz1; i += 1)
+    for (var j : int = 0; j < sz1; j += 1)
       narr[j] = this[i,j];
     return narr;
   }
@@ -91,21 +91,21 @@ class Array2[T] : Indexable2[int, T] {
   def last() : T { return index(sz1-1,sz2-1); }
 
   def foreach(fun : (T -> unit)) {
-    for (val i : int = 0; i < sz1; i += 1)
-      for (val j : int = 0; j < sz2; j += 1)
+    for (var i : int = 0; i < sz1; i += 1)
+      for (var j : int = 0; j < sz2; j += 1)
         fun(this[i,j]);
   }
 
   def foreach_i(fun : (int -> int -> unit)) {
-    for (val i : int = 0; i < sz1; i += 1)
-      for (val j : int = 0; j < sz2; j += 1)
+    for (var i : int = 0; i < sz1; i += 1)
+      for (var j : int = 0; j < sz2; j += 1)
         fun(i, j);
   }
 
   def map[M](fun : (T -> M)) : Seq[M] {
     var newArr : Array2[M] = Array2[M](sz1,sz2);
-    for (val i : int = 0; i < sz1; i += 1)
-      for (val j : int = 0; j < sz2; j += 1)
+    for (var i : int = 0; i < sz1; i += 1)
+      for (var j : int = 0; j < sz2; j += 1)
         newArr[i,j] = fun(this[i,j]);
     return newArr;
   }

@@ -74,7 +74,15 @@ case class Type(var full : Term) extends Stmt {
 trait HasResolvedType { var sym : ResolvedType = null }
 trait HasContext { var context : Context = null }
 trait HasResolution { var res : ResolutionType = null }
-abstract class Expression extends Positional with HasResolvedType with HasContext with HasResolution
+trait IsLval {
+  var islval : Boolean = true
+  var isMutable : Boolean = true
+}
+abstract class Expression extends Positional
+         with HasResolvedType
+         with HasContext
+         with HasResolution
+         with IsLval
 
 case class AsyncExpr(e : Expression) extends Expression
 case class SyncExpr(e : Expression) extends Expression

@@ -35,6 +35,6 @@ def main(args : Array[string]) {
     return x#;
   });
 
-  for (val i : int = 0; i < 10; i += 1) {
+  for (var i : int = 0; i < 10; i += 1) {
   }
 }

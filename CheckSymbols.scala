@@ -7,9 +7,9 @@ import scala.collection.mutable.{ArrayBuffer,ListBuffer}
  * Todos:
  * chare arrays, sections, etc.
  * how to communicate with other languages (extern/etc.)
- * wait statements
  * 
  * Completed todos:
+ * wait statements
  * first-class functions
  * arbitrary operators
  * fix parsing problem with multiple functions
@@ -96,6 +96,10 @@ object Checker {
     tree match {
       case t@AssignStmt(lval, _, rval) => {
         if (verbose) println(t.pos + ": check assign of: rsym = " + rval.sym + ", lsym = " + lval.sym)
+
+        if (!lval.islval) SemanticError("lval of assignment is not allowed", lval.pos)
+        if (!lval.isMutable && !t.enclosingDef.isConstructor)
+          SemanticError("illegal modification of readonly val", lval.pos)
 
         if (!ClassEquality.equal(rval.sym, lval.sym) && !rval.sym.isNull)
           SemanticError("tried to assign to different class type: " + t.sym, rval.pos)
@@ -719,6 +723,10 @@ object Checker {
 
     // set the resolution type for the identifier
     cls.res = sym.get._3
+
+    // set whether this is possibly a valid lval
+    cls.islval = sym.get._1.isInstanceOf[DeclSymbol]
+    cls.isMutable = if (sym.get._1.isInstanceOf[DeclSymbol]) sym.get._1.asInstanceOf[DeclSymbol].isMutable else true
 
     val d = sym.get._1.asInstanceOf[HasDeclType]
     val (nt, ncon) = findNew(d.declType,cls,sym.get._2 ++ bindings)

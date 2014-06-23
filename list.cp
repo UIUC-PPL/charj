@@ -14,8 +14,8 @@ class Linked[T] {
 }
 
 class List[T] : Seq[T] {
-  val front : Ref[Linked[T]] = null;
-  val back : Option[T];
+  var front : Ref[Linked[T]] = null;
+  var back : Option[T];
   var size : int = 0;
 
   def List() { }
