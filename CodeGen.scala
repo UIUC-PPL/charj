@@ -229,7 +229,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         }
         outln(genType(typ, binds) + " " + genDeclName(name) + assign + ";")
       }
-      case ExprStmt(e) => outln(genExpr(e, binds))
+      case ExprStmt(e) => outln(genExpr(e, binds) + ";")
       case t@IfStmt(cond,stmt1,ostmt2) => {
         val outCond = genExpr(cond, binds)
         outln("if (" + outCond + ") {")
@@ -426,9 +426,13 @@ class CodeGen(tree : Stmt, out : String => Unit) {
               genDefNameBase(defNameG)
             }
           }
-          val ii = genImm()
-          outln(genRType(t.sym) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
-          ii
+          if (genRType(t.sym) == "void") {
+            call + "(" + initial + ins.mkString(",") + ");"
+          } else {
+            val ii = genImm()
+            outln(genRType(t.sym) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+            ii
+          }
         }
       }
       case t@DefExpr(d) => {
