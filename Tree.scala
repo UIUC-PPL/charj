@@ -87,6 +87,9 @@ abstract class Expression extends Positional
          with HasContext
          with HasResolution
          with IsLval
+{
+  var objectContext : String = null
+}
 
 case class AsyncExpr(e : Expression) extends Expression
 case class SyncExpr(e : Expression) extends Expression

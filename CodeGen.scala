@@ -30,20 +30,24 @@ class CodeGen(tree : Stmt, out : String => Unit) {
 
     println("instToGen = " + instToGen);
 
-    while ((instToGen &~ completedGen).size > 0) {
-      val curSet = (instToGen &~ completedGen).clone()
-      for (i <- curSet) {
-        val styp = Checker.resolveSingleClassType(Type(i), null, null)
-        genClassAll(styp.bindings)(styp.cs.stmt)
-        completedGen += i
+    // iteratively instantiate class and function generics, which may
+    // create more to generate
+    while ((instToGen &~ completedGen).size > 0 ||
+           (instDefToGen &~ completedDefGen).size > 0) {
+      while ((instToGen &~ completedGen).size > 0) {
+        val curSet = (instToGen &~ completedGen).clone()
+        for (i <- curSet) {
+          val styp = Checker.resolveSingleClassType(Type(i), null, null)
+          genClassAll(styp.bindings)(styp.cs.stmt)
+          completedGen += i
+        }
       }
-    }
-
-    while ((instDefToGen &~ completedDefGen).size > 0) {
-      val curSet = (instDefToGen &~ completedDefGen).clone()
-      for (tt@(ds,b) <- curSet) {
-        genDefs(true,b)(ds)
-        completedDefGen += tt
+      while ((instDefToGen &~ completedDefGen).size > 0) {
+        val curSet = (instDefToGen &~ completedDefGen).clone()
+        for (tt@(ds,b) <- curSet) {
+          genDefs(true,b)(ds)
+          completedDefGen += tt
+        }
       }
     }
   }
@@ -360,16 +364,17 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   }
 
   def outputImmStrExpr(id : String, x : Expression) : String = {
-    //val ii = genImm()
+    val ii = genImm()
     if (x.res == null) CodeGenError("expression has no resolution")
     val name = x.res match {
       case Immediate(_,_,_) => genDeclName(id)
-      case ClassScope(_,_,_,n,stmt,binds) => genObjectDefInput + "->" + genDeclName(id, n)
+      case ClassScope(_,_,_,n,stmt,binds) =>
+        (if (x.objectContext != null) x.objectContext + "." else genObjectDefInput + "->") + genDeclName(id, n)
       case _ => ""
     }
-    //outln(genRType(x.sym) + "& " + ii + " = " + name + ";")
-    //ii
-    name
+    outln(genRType(x.sym) + "& " + ii + " = " + name + ";")
+    ii
+    //name
   }
 
   def genExpr(expr : Expression, b : List[(Term,Term)]) : String = {
@@ -403,19 +408,27 @@ class CodeGen(tree : Stmt, out : String => Unit) {
           var ins : List[String] = List()
           var initial : String = ""
           if (!param.isEmpty) ins = param.get.map{genExpr(_, b)}
+          //println("genExpr call: b = " + b)
           val call = t.res match {
             case Immediate(_,_,_) => genDeclName(name)
             case ClassScope(_,_,_,n,stmt,binds) => {
-              initial = genObjectDefInput + ","
-              if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings ++ binds)
-              genDefNameClass(stmt, binds, defNameG)
+              val hasComma = if (ins.length > 0) "," else ""
+              initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
+              if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings ++ b)
+              if (n == "Ref" && (name == "#" || name == "deref")) {
+                "*"
+              } else {
+                genDefNameClass(stmt, b, defNameG)
+              }
             }
             case BaseScope(_,_,_) => {
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings)
               genDefNameBase(defNameG)
             }
           }
-          call + "(" + initial + ins.mkString(",") + ")"
+          val ii = genImm()
+          outln(genRType(t.sym) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+          ii
         }
       }
       case t@DefExpr(d) => {
@@ -447,7 +460,14 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         outln(genRType(t.sym) + " " + ii + " = -" + s1 + ";")
         ii
       }
-      case _ => ""
+      case t@DotExpr(l, r) => {
+        //println("dot = " + t + ", l.sym = " + l.sym + ", r.sym = " + r.sym + ", t.sym = " + t.sym)
+        if (l.objectContext == null) l.objectContext = t.objectContext
+        val s1 = genExpr(l,t.sym.getBindings())
+        r.sym = t.sym
+        r.objectContext = s1
+        genExpr(r,l.sym.getBindings())
+      }
     }
   }
 

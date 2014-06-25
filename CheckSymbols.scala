@@ -479,6 +479,18 @@ object Checker {
       }
       case True() | False() => expr.sym = resolveClassType(Type(booleanType),expr,cls)
       case DotExpr(l, r) => {
+        println("DotExpr l = " + l + ", r = " + r)
+
+        (l,r) match {
+          case (_,DotExpr(ll,_)) => {
+            if (ll.sym == null) {
+              ll.sym = l.sym
+              ll.context = l.context
+            }
+          }
+          case _ => ;
+        }
+
         if (l.sym == null) {
           SemanticError("should be resolved to type" + l, l.pos)
         } else {
