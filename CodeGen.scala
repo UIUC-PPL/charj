@@ -10,8 +10,8 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   val instToGen : Set[Term] = Set()
   val completedGen : Set[Term] = Set()
 
-  val instDefToGen : Set[Term] = Set()
-  val completedDefGen : Set[Term] = Set()
+  val instDefToGen : Set[(DefStmt,List[(Term,Term)])] = Set()
+  val completedDefGen : Set[(DefStmt,List[(Term,Term)])] = Set()
 
   def start() {
     def filterClass(cls : Stmt) = cls.isInstanceOf[ClassStmt] && cls.asInstanceOf[ClassStmt].generic.length == 0
@@ -26,7 +26,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
 
     new StmtVisitor(tree, filterClass, genClassAll(List()) _)
 
-    new StmtVisitor(tree, filterOuterDef, genDefs(List()) _)
+    new StmtVisitor(tree, filterOuterDef, genDefs(false,List()) _)
 
     println("instToGen = " + instToGen);
 
@@ -36,6 +36,14 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         val styp = Checker.resolveSingleClassType(Type(i), null, null)
         genClassAll(styp.bindings)(styp.cs.stmt)
         completedGen += i
+      }
+    }
+
+    while ((instDefToGen &~ completedDefGen).size > 0) {
+      val curSet = (instDefToGen &~ completedDefGen).clone()
+      for (tt@(ds,b) <- curSet) {
+        genDefs(true,b)(ds)
+        completedDefGen += tt
       }
     }
   }
@@ -125,7 +133,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         if (name != "this")
           outln(genType(typ, b) + " " + genDeclName(name, t.enclosingClass.name) + ";")
       }
-      case t@DefStmt(_,_,_,_,_) => genDefs(b)(t)
+      case t@DefStmt(_,_,_,_,_) => genDefs(false,b)(t)
       case _ => ;
     }
   }
@@ -139,20 +147,24 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   }
 
   // generate defs which will take the class as a parameter if there is one
-  def genDefs(binds : List[(Term,Term)])(tree : Stmt) {
+  def genDefs(doGens : Boolean,binds : List[(Term,Term)])(tree : Stmt) {
     tree match {
       case t@DefStmt(name,gens,nthunks,ret,stmts) => {
         var cl : String = ""
         if (t.enclosingClass != null)
           cl = genClassName(t.enclosingClass, binds)
-        val genName = if (t.enclosingClass != null) genDefNameClass(t.enclosingClass, binds, name) else genDefNameBase(name)
 
         // some special cases that we will handle later
         if ((t.enclosingClass == null ||
             (t.enclosingClass.name != "Ref" &&
              !t.enclosingClass.isAbstract &&
              !t.enclosingClass.isSystem)) &&
-          gens.length == 0) {
+          (doGens || gens.length == 0)) {
+
+          val t1 = Fun(name, t.sym.term)
+          val subs = Unifier(true).subst(t1, binds)
+          val defNameG = if (gens.length > 0) genFunNameGens(subs.asInstanceOf[Fun]) else name
+          var genName = if (t.enclosingClass != null) genDefNameClass(t.enclosingClass, binds, defNameG) else genDefNameBase(defNameG)
 
           outln("\n/* output function " + genName + "*/")
 
@@ -370,11 +382,14 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       case t@StrExpr(str) => outputImmStrExpr(str, t)
       case t@FunExpr(name,gens,param) => {
         var defNameG = name
+        var hasGenTerm : Term = null
+        var defStmt : DefStmt = null
         if (t.res.s.isInstanceOf[DefSymbol] &&
             t.res.s.asInstanceOf[DefSymbol].hasGens) {
           val t1 = Fun(name, t.res.s.asInstanceOf[DefSymbol].term)
-          val subs = Unifier(true).subst(t1, expr.function_bindings)
-          defNameG = genFunNameGens(subs.asInstanceOf[Fun])
+          hasGenTerm = Unifier(true).subst(t1, expr.function_bindings)
+          defNameG = genFunNameGens(hasGenTerm.asInstanceOf[Fun])
+          defStmt = t.res.s.asInstanceOf[DefSymbol].stmt
           //outln("Term = " + t.res.s.asInstanceOf[DefSymbol].term)
           //outln("fb = " + expr.function_bindings)
         }
@@ -392,9 +407,13 @@ class CodeGen(tree : Stmt, out : String => Unit) {
             case Immediate(_,_,_) => genDeclName(name)
             case ClassScope(_,_,_,n,stmt,binds) => {
               initial = genObjectDefInput + ","
+              if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings ++ binds)
               genDefNameClass(stmt, binds, defNameG)
             }
-            case BaseScope(_,_,_) => genDefNameBase(defNameG)
+            case BaseScope(_,_,_) => {
+              if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings)
+              genDefNameBase(defNameG)
+            }
           }
           call + "(" + initial + ins.mkString(",") + ")"
         }

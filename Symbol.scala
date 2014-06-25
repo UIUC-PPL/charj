@@ -45,6 +45,7 @@ case class DefSymbol(name : String, isAbstract : Boolean) extends Symbol with Ha
   var classCons : ClassStmt = null
   var arity : Int = -1
   var hasGens : Boolean = false
+  var stmt : DefStmt = null
   override def toString = "def \"" + name + "\", in = " + inTypes +
                           ", ret = " + retType + ", isConstructor = " + isConstructor
 }

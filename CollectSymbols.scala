@@ -112,14 +112,14 @@ class Collector(tree : Stmt) {
 
         if (t.enclosingClass != null &&
             t.enclosingClass.name == name) {
-          t.sym = addDef(t.gens, BaseContext.context, tree, con, name, tree.pos, isAbstract, arity)
+          t.sym = addDef(t.gens, BaseContext.context, tree, con, name, tree.pos, isAbstract, arity, t)
           t.sym.isCons = true
           t.sym.classCons = enclosingClass
         } else {
           if (enclosingWait != null)
-            t.sym = addDef(t.gens, enclosingClass.context, tree, con, name, tree.pos, isAbstract, arity)
+            t.sym = addDef(t.gens, enclosingClass.context, tree, con, name, tree.pos, isAbstract, arity, t)
           else
-            t.sym = addDef(t.gens, context, tree, con, name, tree.pos, isAbstract, arity)
+            t.sym = addDef(t.gens, context, tree, con, name, tree.pos, isAbstract, arity, t)
         }
 
         // set hasGens on the symbol
@@ -138,7 +138,7 @@ class Collector(tree : Stmt) {
             param.decl = param match {
               case TypeParam(_,Type(th@Thunker(lst))) => {
                 val defSym = addDef(List(), con, tree, newContext(con, tree, true),
-                                    param.name, param.pos, false, lst.length)
+                                    param.name, param.pos, false, lst.length, t)
                 param.defSym = defSym
                 defSym
               }
@@ -247,10 +247,11 @@ class Collector(tree : Stmt) {
   }
 
   def addDef(gens : List[Term], context : Context, stmt : Stmt, newContext : Context,
-             name : String, pos : Position, isAbstract : Boolean, arity : Int) = {
+             name : String, pos : Position, isAbstract : Boolean, arity : Int, ds : DefStmt) = {
     val sym = DefSymbol(name, isAbstract)
     sym.arity = arity
     sym.term = gens
+    sym.stmt = ds
     //println("Collector: " + name + ": addDef, gens = " + sym.term)
     context.checkAdd(sym, stmt, newContext, pos)
     sym
