@@ -74,7 +74,10 @@ case class Type(var full : Term) extends Stmt {
 
 trait HasResolvedType { var sym : ResolvedType = null }
 trait HasContext { var context : Context = null }
-trait HasResolution { var res : ResolutionType = null }
+trait HasResolution {
+  var res : ResolutionType = null
+  var function_bindings : List[(Term,Term)] = List()
+}
 trait IsLval {
   var islval : Boolean = true
   var isMutable : Boolean = true

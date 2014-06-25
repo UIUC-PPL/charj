@@ -16,7 +16,6 @@ class Parent : Base[boolean] {
       exit(20);
     }
   }
-
 }
 
 class Test : Parent {
@@ -55,11 +54,17 @@ class Test : Parent {
       x2 = 10;
     }
 
-    mmm({ (x : boolean) : boolean => return x; });
+    test3[int, string](5);
+
+    mmmxxx({ (x : boolean) : boolean => return x || y1; });
   }
 
-  def mmm(x : boolean -> boolean) {
+  def mmmxxx(x : boolean -> boolean) {
     x(true);
+  }
+
+  def test3[M, N](t : M) {
+    val x : M;
   }
 }
 

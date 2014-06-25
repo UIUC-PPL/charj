@@ -121,6 +121,10 @@ class Collector(tree : Stmt) {
           else
             t.sym = addDef(t.gens, context, tree, con, name, tree.pos, isAbstract, arity)
         }
+
+        // set hasGens on the symbol
+        if (t.gens.length > 0) t.sym.hasGens = true
+
         if (t.enclosingClass != null)
           con.sym = enclosingClass.sym
         if (t.enclosingClass != null) {

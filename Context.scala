@@ -8,9 +8,10 @@ object BaseContext {
   var verbose : Boolean = false
 }
 
-abstract class ResolutionType
+abstract class ResolutionType { val s : Symbol; }
 case class Immediate(n : Int, c : Context, s : Symbol) extends ResolutionType
-case class ClassScope(n : Int, c : Context, s : Symbol, name : String) extends ResolutionType
+case class ClassScope(n : Int, c : Context, s : Symbol, name : String,
+                      stmt : ClassStmt, bindings : List[(Term,Term)]) extends ResolutionType
 case class BaseScope(n : Int, c : Context, s : Symbol) extends ResolutionType
 case class ConstructScope(n : Int, c : Context, s : Symbol) extends ResolutionType
 
@@ -88,11 +89,10 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
         return Some(cons.get._1, binding, ConstructScope(count, this, cons.get._1))
       }
     } else {
-      return Some(lookup.get._1, binding,
-                  (if (isOrdered) Immediate(count, this, lookup.get._1)
-                   else if (this != BaseContext.context) ClassScope(count, this, lookup.get._1, name)
-                   else BaseScope(count, this, lookup.get._1) )
-                  )
+      val scope = (if (isOrdered) Immediate(count, this, lookup.get._1)
+                   else if (this != BaseContext.context) ClassScope(count, this, lookup.get._1, name, sym.asInstanceOf[ClassSymbol].stmt, binding)
+                   else BaseScope(count, this, lookup.get._1))
+      return Some(lookup.get._1, binding, scope)
     }
   }
 
