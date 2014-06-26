@@ -87,12 +87,17 @@ object Parse extends StandardTokenParsers with App {
     val writer = new PrintWriter(new File("out.cc"))
     writer.write("#include <stdio.h>\n")
     writer.write("#include <stdlib.h>\n")
-    def printer(s : String) : Unit = {
-      //print(s)
-      writer.write(s)
-    }
-    val gen = new CodeGen(tree, printer);
+
+    var body : StringBuilder = new StringBuilder()
+    var prelude : StringBuilder = new StringBuilder()
+    def bodyPrinter(s : String) : Unit = body.append(s)
+    def preludePrinter(s : String) : Unit = prelude.append(s)
+
+    val gen = new CodeGen(tree, bodyPrinter, preludePrinter);
     gen.start()
+
+    writer.write(prelude.toString())
+    writer.write(body.toString())
     writer.close()
     if (verbose) println("--- generation complete ---")
   }

@@ -3,7 +3,7 @@ package CharjParser
 import scala.util.parsing.input.{Positional,Position}
 import scala.collection.mutable.{ArrayBuffer,ListBuffer,HashMap,Set}
 
-class CodeGen(tree : Stmt, out : String => Unit) {
+class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
   import BaseContext.verbose
 
   val systemTypes : HashMap[String,String] = HashMap()
@@ -66,6 +66,15 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   def outln(s : String) = {
     outinit(s)
     out("\n")
+  }
+  def preinit(s : String) = pre((List.fill(tabs)("  ").foldRight("")(_+_)) + s)
+  def preln(s : String) = {
+    preinit(s)
+    pre("\n")
+  }
+  def outlnbb(s : String) = {
+    outln(s)
+    preln(s)
   }
 
   def genCondGoto() = genImm() + "_condition"
@@ -176,18 +185,19 @@ class CodeGen(tree : Stmt, out : String => Unit) {
 
           if (!t.isEntry) {
             if (!t.isConstructor) {
-              outln(genType(ret, binds));
-              outln(genName + "(");
+              outlnbb(genType(ret, binds));
+              outlnbb(genName + "(");
               tab()
               if (t.enclosingClass != null) {
                 // first parameter is the class
-                outln(cl + "* " + genObjectDefInput)
+                outlnbb(cl + "* " + genObjectDefInput)
                 if (!nthunks.isEmpty && nthunks.get.length != 0) outinit(",")
               }
               // generate input types
               genInputs(nthunks, binds)
               untab()
-              outln(")");
+              outlnbb(")");
+              pre(";\n");
               outln("{");
               tab()
               // generate body of def
@@ -219,7 +229,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       case "print" => {
         val n : String = t1.asInstanceOf[Fun].terms(0).getName
         n match {
-          case "int" => outln("printf(\"%d\",__decl_t);")
+          case "int" => outln("printf(\"%d\\n\",__decl_t);")
         }
       }
       case "exitError" => outln("fprintf(stderr, __decl_s.c_str());")
@@ -493,9 +503,9 @@ class CodeGen(tree : Stmt, out : String => Unit) {
     ins match {
       case Some(lst) => {
         if (lst.length != 0) {
-          outln(genTypeParam(lst.head, b))
+          outlnbb(genTypeParam(lst.head, b))
           lst.takeRight(lst.length-1).foreach{ty =>
-            outln("," + genTypeParam(ty, b))
+            outlnbb("," + genTypeParam(ty, b))
           }
         }
       }
