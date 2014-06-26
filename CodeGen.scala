@@ -248,7 +248,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       case t@AssignStmt(lval,op,rval) => {
         val lexpr = genExpr(lval, binds)
         val rexpr = genExpr(rval, binds)
-        outln(lexpr + " " + genAssignOP(op) + " " + rexpr)
+        outln(lexpr + " " + genAssignOP(op) + " " + rexpr + ";")
       }
       case t@WhileStmt(expr,stmt) => {
         val condGoto = genCondGoto()
@@ -416,6 +416,8 @@ class CodeGen(tree : Stmt, out : String => Unit) {
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings ++ b)
               if (n == "Ref" && (name == "#" || name == "deref")) {
                 "*"
+              } else if (n == "Ref" && name == "free") {
+                "free";
               } else {
                 genDefNameClass(stmt, b, defNameG)
               }

@@ -53,8 +53,9 @@ class List[T] : Seq[T] {
       return ret;
     } else if (size > 1) {
       val ret : T = front#.item;
-      front.free();
+      val prevfront : Ref[Linked[T]] = front;
       front = front#.next;
+      prevfront.free();
     }
     size -= 1;
   }
