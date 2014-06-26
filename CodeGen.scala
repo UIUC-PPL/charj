@@ -6,7 +6,8 @@ import scala.collection.mutable.{ArrayBuffer,ListBuffer,HashMap,Set}
 class CodeGen(tree : Stmt,
               outcl : String => Unit,
               out : String => Unit,
-              pre : String => Unit) {
+              pre : String => Unit,
+              precl : String => Unit) {
   import BaseContext.verbose
 
   val systemTypes : HashMap[String,String] = HashMap()
@@ -67,24 +68,14 @@ class CodeGen(tree : Stmt,
   def untab() { tabs -= 1 }
 
   def outclinit(s : String) = outcl((List.fill(tabs)("  ").foldRight("")(_+_)) + s)
-  def outclln(s : String) = {
-    outclinit(s)
-    outcl("\n")
-  }
+  def outclln(s : String) = { outclinit(s); outcl("\n") }
   def outinit(s : String) = out((List.fill(tabs)("  ").foldRight("")(_+_)) + s)
-  def outln(s : String) = {
-    outinit(s)
-    out("\n")
-  }
+  def outln(s : String) = { outinit(s); out("\n") }
   def preinit(s : String) = pre((List.fill(tabs)("  ").foldRight("")(_+_)) + s)
-  def preln(s : String) = {
-    preinit(s)
-    pre("\n")
-  }
-  def outlnbb(s : String) = {
-    outln(s)
-    preln(s)
-  }
+  def preln(s : String) = { preinit(s); pre("\n") }
+  def preclinit(s : String) = precl((List.fill(tabs)("  ").foldRight("")(_+_)) + s)
+  def preclln(s : String) = { preclinit(s); precl("\n") }
+  def outlnbb(s : String) = { outln(s); preln(s) }
 
   def genCondGoto() = genImm() + "_condition"
   def genBodyGoto() = genImm() + "_body"
@@ -138,7 +129,7 @@ class CodeGen(tree : Stmt,
 
           outclln("\n/* output class " + genName + "*/")
 
-          preln("struct " + genName + ";")
+          preclln("struct " + genName + ";")
           outclln("struct " + genName + " { /* parent is " + parent + "*/")
           tab()
           if (!parent.isEmpty)

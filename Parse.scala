@@ -90,16 +90,20 @@ object Parse extends StandardTokenParsers with App {
 
     var clbody : StringBuilder = new StringBuilder()
     var defbody : StringBuilder = new StringBuilder()
-    var prelude : StringBuilder = new StringBuilder()
+    var preludeDef : StringBuilder = new StringBuilder()
+    var preludeCl : StringBuilder = new StringBuilder()
     def clbodyPrinter(s : String) : Unit = clbody.append(s)
     def defbodyPrinter(s : String) : Unit = defbody.append(s)
-    def preludePrinter(s : String) : Unit = prelude.append(s)
+    def preludePrinter(s : String) : Unit = preludeDef.append(s)
+    def preludeClPrinter(s : String) : Unit = preludeCl.append(s)
 
-    val gen = new CodeGen(tree, clbodyPrinter, defbodyPrinter, preludePrinter);
+    val gen = new CodeGen(tree, clbodyPrinter, defbodyPrinter,
+                          preludePrinter, preludeClPrinter);
     gen.start()
 
+    writer.write(preludeCl.toString())
     writer.write(clbody.toString())
-    writer.write(prelude.toString())
+    writer.write(preludeDef.toString())
     writer.write(defbody.toString())
     writer.close()
     if (verbose) println("--- generation complete ---")
