@@ -3,7 +3,7 @@ include "ref.cp";
 include "tuple.cp";
 
 // special functions to exit app
-def exitError(s : string) { }
+//def exitError(s : string) { }
 def exit(i : int) { }
 
 // special print functions for now

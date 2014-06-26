@@ -22,13 +22,13 @@ class CodeGen(tree : Stmt, out : String => Unit) {
      * the base-line bound types
      */
     new StmtVisitor(tree, filterClass, collectSystemTypes)
-    println("found system types = " + systemTypes);
+    //println("found system types = " + systemTypes);
 
     new StmtVisitor(tree, filterClass, genClassAll(List()) _)
 
     new StmtVisitor(tree, filterOuterDef, genDefs(false,List()) _)
 
-    println("instToGen = " + instToGen);
+    //println("instToGen = " + instToGen);
 
     // iteratively instantiate class and function generics, which may
     // create more to generate
@@ -50,6 +50,8 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         }
       }
     }
+
+    outln("int main(int argc, char* argv[]) { __def_base_main(); return 0; }")
   }
 
   var seed : Int = 0
@@ -190,8 +192,8 @@ class CodeGen(tree : Stmt, out : String => Unit) {
               tab()
               // generate body of def
               if (t.enclosingClass == null &&
-                  (name == "exit" || name == "exitError")) {
-                genSpecialDefBody(name);
+                  (name == "exit" || name == "exitError" || name == "print")) {
+                genSpecialDefBody(name, subs);
               }
               genDefBody(stmts, binds)
               untab()
@@ -211,10 +213,16 @@ class CodeGen(tree : Stmt, out : String => Unit) {
     }
   }
 
-  def genSpecialDefBody(name : String) {
+  def genSpecialDefBody(name : String, t1 : Term) {
     name match {
-      case "exit" => outln("exit(__var_i);")
-      case "exitError" => outln("fprintf(stderr, __var_s.c_str());")
+      case "exit" => outln("exit(__decl_i);")
+      case "print" => {
+        val n : String = t1.asInstanceOf[Fun].terms(0).getName
+        n match {
+          case "int" => outln("printf(\"%d\",__decl_t);")
+        }
+      }
+      case "exitError" => outln("fprintf(stderr, __decl_s.c_str());")
     }
   }
 

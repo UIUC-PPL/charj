@@ -82,10 +82,18 @@ object Parse extends StandardTokenParsers with App {
   }
 
   def backEnd(tree : Stmt) {
+    import java.io._
     if (verbose) println("--- starting back end generation ---")
-    def printer(s : String) : Unit = print(s)
+    val writer = new PrintWriter(new File("out.cc"))
+    writer.write("#include <stdio.h>\n")
+    writer.write("#include <stdlib.h>\n")
+    def printer(s : String) : Unit = {
+      //print(s)
+      writer.write(s)
+    }
     val gen = new CodeGen(tree, printer);
     gen.start()
+    writer.close()
     if (verbose) println("--- generation complete ---")
   }
 
