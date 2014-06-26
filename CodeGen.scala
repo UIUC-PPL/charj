@@ -74,11 +74,11 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   def genDeclName(n : String) = "__decl_" + n
   def genDefNameClass(t : ClassStmt, b : List[(Term,Term)], n : String) = "__def_" + genClassName(t,b) + "_" + n
   def genDefNameBase(n : String) = "__def_base_" + n
-  def genFunNameGens(x : Fun) = x.n + "_" + x.terms.map{genTerm(_)}.foldRight("___")(_+_)
+  def genFunNameGens(x : Fun) = x.n + "_" + x.terms.map{genTerm(_)}.foldRight("_")(_+_)
   def genInner(tree : List[Stmt], b : List[(Term,Term)], fun : Stmt => Boolean) {
     for (t <- tree) if (fun(t)) genClassAll(b)(t)
   }
-  def genObjectDefInput = "__OBJECT_"
+  def genObjectDefInput = "_OBJECT_"
 
   def collectSystemTypes(tree : Stmt) {
     tree match {
@@ -334,36 +334,36 @@ class CodeGen(tree : Stmt, out : String => Unit) {
   def travBinary(l : Expression, r : Expression, cur : Expression, op : String, b : List[(Term,Term)]) = {
     val s1 = genExpr(l,b)
     val s2 = genExpr(r,b)
-    outputImm(cur, s1, s2, op)
+    outputImm(cur, s1, s2, op, b)
   }
 
-  def genRType(t : ResolvedType) : String = {
+  def genRType(t : ResolvedType, clBinds : List[(Term,Term)]) : String = {
     t match {
-      case SingleType(cs,binds) => genType(Some(Type(cs.t)), binds)
+      case SingleType(cs,binds) => genType(Some(Type(cs.t)), binds ++ clBinds)
       case _ => "/*<unknown>*/ void"
     }
   }
 
-  def outputImmLiteral(lit : Expression) : String = {
+  def outputImmLiteral(lit : Expression, b : List[(Term,Term)]) : String = {
     val ii = genImm()
     lit match {
-      case StrLiteral(s) => outln(genRType(lit.sym) + " " +  ii + " = " + s + ";")
-      case NumLiteral(s) => outln(genRType(lit.sym) + " " +  ii + " = " + s + ";")
-      case True() => outln(genRType(lit.sym) + " " +  ii + " = true ;")
-      case False() => outln(genRType(lit.sym) + " " +  ii + " = false ;")
+      case StrLiteral(s) => outln(genRType(lit.sym,b) + " " +  ii + " = " + s + ";")
+      case NumLiteral(s) => outln(genRType(lit.sym,b) + " " +  ii + " = " + s + ";")
+      case True() => outln(genRType(lit.sym,b) + " " +  ii + " = true ;")
+      case False() => outln(genRType(lit.sym,b) + " " +  ii + " = false ;")
       case Null() => outln("void* " +  ii + " = null;")
       case _ => ""
     }
     ii
   }
 
-  def outputImm(t : Expression, l : String, r : String, op : String) : String = {
+  def outputImm(t : Expression, l : String, r : String, op : String, b : List[(Term,Term)]) : String = {
     val ii = genImm()
-    outln(genRType(t.sym) + " " + ii + " = " + l + " " + op + " " + r + ";")
+    outln(genRType(t.sym,b) + " " + ii + " = " + l + " " + op + " " + r + ";")
     ii
   }
 
-  def outputImmStrExpr(id : String, x : Expression) : String = {
+  def outputImmStrExpr(id : String, x : Expression, b : List[(Term,Term)]) : String = {
     val ii = genImm()
     if (x.res == null) CodeGenError("expression has no resolution")
     val name = x.res match {
@@ -372,19 +372,19 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         (if (x.objectContext != null) x.objectContext + "." else genObjectDefInput + "->") + genDeclName(id, n)
       case _ => ""
     }
-    outln(genRType(x.sym) + "& " + ii + " = " + name + ";")
+    outln(genRType(x.sym,b) + "& " + ii + " = " + name + ";")
     ii
     //name
   }
 
   def genExpr(expr : Expression, b : List[(Term,Term)]) : String = {
     expr match {
-      case t@StrLiteral(_) => outputImmLiteral(t)
-      case t@NumLiteral(_) => outputImmLiteral(t)
-      case t@True() => outputImmLiteral(t)
-      case t@False() => outputImmLiteral(t)
-      case t@Null() => outputImmLiteral(t)
-      case t@StrExpr(str) => outputImmStrExpr(str, t)
+      case t@StrLiteral(_) => outputImmLiteral(t,b)
+      case t@NumLiteral(_) => outputImmLiteral(t,b)
+      case t@True() => outputImmLiteral(t,b)
+      case t@False() => outputImmLiteral(t,b)
+      case t@Null() => outputImmLiteral(t,b)
+      case t@StrExpr(str) => outputImmStrExpr(str,t,b)
       case t@FunExpr(name,gens,param) => {
         var defNameG = name
         var hasGenTerm : Term = null
@@ -392,7 +392,7 @@ class CodeGen(tree : Stmt, out : String => Unit) {
         if (t.res.s.isInstanceOf[DefSymbol] &&
             t.res.s.asInstanceOf[DefSymbol].hasGens) {
           val t1 = Fun(name, t.res.s.asInstanceOf[DefSymbol].term)
-          hasGenTerm = Unifier(true).subst(t1, expr.function_bindings)
+          hasGenTerm = Unifier(true).subst(t1, expr.function_bindings ++ b)
           defNameG = genFunNameGens(hasGenTerm.asInstanceOf[Fun])
           defStmt = t.res.s.asInstanceOf[DefSymbol].stmt
           //outln("Term = " + t.res.s.asInstanceOf[DefSymbol].term)
@@ -402,13 +402,12 @@ class CodeGen(tree : Stmt, out : String => Unit) {
           // this is the special create reference operator
           val p = genExpr(param.get(0), b)
           val ii = genImm()
-          outln(genRType(t.sym) + " " + ii + " = &(" + p + ");")
+          outln(genRType(t.sym,b) + " " + ii + " = &(" + p + ");")
           ii
         } else {
           var ins : List[String] = List()
           var initial : String = ""
           if (!param.isEmpty) ins = param.get.map{genExpr(_, b)}
-          //println("genExpr call: b = " + b)
           val call = t.res match {
             case Immediate(_,_,_) => genDeclName(name)
             case ClassScope(_,_,_,n,stmt,binds) => {
@@ -426,11 +425,11 @@ class CodeGen(tree : Stmt, out : String => Unit) {
               genDefNameBase(defNameG)
             }
           }
-          if (genRType(t.sym) == "void") {
+          if (genRType(t.sym,b) == "void") {
             call + "(" + initial + ins.mkString(",") + ");"
           } else {
             val ii = genImm()
-            outln(genRType(t.sym) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+            outln(genRType(t.sym,b) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
             ii
           }
         }
@@ -452,25 +451,30 @@ class CodeGen(tree : Stmt, out : String => Unit) {
       case GesExpr(l, r) => travBinary(l, r, expr, ">", b)
       case GeqExpr(l, r) => travBinary(l, r, expr, ">=", b)
       case NeqExpr(l, r) => travBinary(l, r, expr, "!=", b)
+      case t@NewExpr(e) => {
+        val s1 = genExpr(e,b)
+        val ii = genImm()
+        outln(genRType(t.sym,b) + " " + ii + " = new " + s1 + ";")
+        ii
+      }
       case t@NotExpr(e) => {
         val s1 = genExpr(e,b)
         val ii = genImm()
-        outln(genRType(t.sym) + " " + ii + " = !" + s1 + ";")
+        outln(genRType(t.sym,b) + " " + ii + " = !" + s1 + ";")
         ii
       }
       case t@NegExpr(e) => {
         val s1 = genExpr(e,b)
         val ii = genImm()
-        outln(genRType(t.sym) + " " + ii + " = -" + s1 + ";")
+        outln(genRType(t.sym,b) + " " + ii + " = -" + s1 + ";")
         ii
       }
       case t@DotExpr(l, r) => {
-        //println("dot = " + t + ", l.sym = " + l.sym + ", r.sym = " + r.sym + ", t.sym = " + t.sym)
         if (l.objectContext == null) l.objectContext = t.objectContext
-        val s1 = genExpr(l,t.sym.getBindings())
+        val s1 = genExpr(l,t.sym.getBindings() ++ b)
         r.sym = t.sym
         r.objectContext = s1
-        genExpr(r,l.sym.getBindings())
+        genExpr(r,l.sym.getBindings() ++ b)
       }
     }
   }
