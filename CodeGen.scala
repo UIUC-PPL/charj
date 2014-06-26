@@ -3,7 +3,10 @@ package CharjParser
 import scala.util.parsing.input.{Positional,Position}
 import scala.collection.mutable.{ArrayBuffer,ListBuffer,HashMap,Set}
 
-class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
+class CodeGen(tree : Stmt,
+              outcl : String => Unit,
+              out : String => Unit,
+              pre : String => Unit) {
   import BaseContext.verbose
 
   val systemTypes : HashMap[String,String] = HashMap()
@@ -24,7 +27,7 @@ class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
     new StmtVisitor(tree, filterClass, collectSystemTypes)
     //println("found system types = " + systemTypes);
 
-    new StmtVisitor(tree, filterClass, genClassAll(List()) _)
+    new StmtVisitor(tree, filterClass, genClassAll(List(),ListBuffer()) _)
 
     new StmtVisitor(tree, filterOuterDef, genDefs(false,List()) _)
 
@@ -38,7 +41,7 @@ class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
         val curSet = (instToGen &~ completedGen).clone()
         for (i <- curSet) {
           val styp = Checker.resolveSingleClassType(Type(i), null, null)
-          genClassAll(styp.bindings)(styp.cs.stmt)
+          genClassAll(styp.bindings,ListBuffer())(styp.cs.stmt)
           completedGen += i
         }
       }
@@ -62,6 +65,12 @@ class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
   var tabs : Int = 0
   def tab() { tabs += 1 }
   def untab() { tabs -= 1 }
+
+  def outclinit(s : String) = outcl((List.fill(tabs)("  ").foldRight("")(_+_)) + s)
+  def outclln(s : String) = {
+    outclinit(s)
+    outcl("\n")
+  }
   def outinit(s : String) = out((List.fill(tabs)("  ").foldRight("")(_+_)) + s)
   def outln(s : String) = {
     outinit(s)
@@ -86,8 +95,9 @@ class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
   def genDefNameClass(t : ClassStmt, b : List[(Term,Term)], n : String) = "__def_" + genClassName(t,b) + "_" + n
   def genDefNameBase(n : String) = "__def_base_" + n
   def genFunNameGens(x : Fun) = x.n + "_" + x.terms.map{genTerm(_)}.foldRight("_")(_+_)
-  def genInner(tree : List[Stmt], b : List[(Term,Term)], fun : Stmt => Boolean) {
-    for (t <- tree) if (fun(t)) genClassAll(b)(t)
+  def genInner(tree : List[Stmt], b : List[(Term,Term)], fun : Stmt => Boolean,
+               db : ListBuffer[(String,Expression)]) {
+    for (t <- tree) if (fun(t)) genClassAll(b,db)(t)
   }
   def genObjectDefInput = "_OBJECT_"
 
@@ -119,46 +129,52 @@ class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
    * at this point, the structure should be completely well-defined
    * with no free variables
    */
-  def genClassAll(b : List[(Term,Term)])(tree : Stmt) {
+  def genClassAll(b : List[(Term,Term)], dbuf : ListBuffer[(String,Expression)])(tree : Stmt) {
     tree match {
       case t@ClassStmt(name, isSystem, generic, parent, lst) => {
         // Ref will be handled specially
         if (!isSystem && !t.isAbstract && name != "Ref") {
           val genName = genClassName(t, b)
 
-          outln("\n/* output class " + genName + "*/")
+          outclln("\n/* output class " + genName + "*/")
 
-          outln("struct " + genName + " { /* parent is " + parent + "*/")
+          preln("struct " + genName + ";")
+          outclln("struct " + genName + " { /* parent is " + parent + "*/")
           tab()
           if (!parent.isEmpty)
-            generateParentSketchRecur(t.context.extensions(0), b)
+            generateParentSketchRecur(t.context.extensions(0), b, dbuf)
           else
-            outln("int32_t virtual_object_id = 0;")
-          genInner(lst, b, _.isInstanceOf[DeclStmt])
+            outclln("int32_t virtual_object_id;")
+          genInner(lst, b, _.isInstanceOf[DeclStmt], dbuf)
           untab()
-          outln("};")
+          outclln("};")
 
-          genInner(lst, b, _.isInstanceOf[DefStmt])
+          t.declInits = dbuf
 
-          outln("/* END output class " + genName + "*/")
+          genInner(lst, b, _.isInstanceOf[DefStmt], dbuf)
+
+          outclln("/* END output class " + genName + "*/")
         }
       }
       case t@DeclStmt(mutable,name,typ,expr) => {
         //println("gen decl: " + t + ", b = " + b)
-        if (name != "this")
-          outln(genType(typ, b) + " " + genDeclName(name, t.enclosingClass.name) + ";")
+        if (name != "this") {
+          val n1 = genDeclName(name, t.enclosingClass.name)
+          outclln(genType(typ, b) + " " + n1 + ";")
+          if (!expr.isEmpty) dbuf += Tuple2(n1, expr.get)
+        }
       }
       case t@DefStmt(_,_,_,_,_) => genDefs(false,b)(t)
       case _ => ;
     }
   }
 
-  def generateParentSketchRecur(ty : SingleType, b : List[(Term,Term)]) {
+  def generateParentSketchRecur(ty : SingleType, b : List[(Term,Term)], dbuf : ListBuffer[(String,Expression)]) {
     if (!ty.cs.stmt.parent.isEmpty)
-      generateParentSketchRecur(ty.cs.stmt.context.extensions(0), b ++ ty.bindings)
+      generateParentSketchRecur(ty.cs.stmt.context.extensions(0), b ++ ty.bindings, dbuf)
     else
-      outln("int32_t virtual_object_id = 0;")
-    genInner(ty.cs.stmt.lst, b ++ ty.bindings, _.isInstanceOf[DeclStmt])
+      outclln("int32_t virtual_object_id;")
+    genInner(ty.cs.stmt.lst, b ++ ty.bindings, _.isInstanceOf[DeclStmt], dbuf)
   }
 
   // generate defs which will take the class as a parameter if there is one
@@ -179,19 +195,26 @@ class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
           val t1 = Fun(name, t.sym.term)
           val subs = Unifier(true).subst(t1, binds)
           val defNameG = if (gens.length > 0) genFunNameGens(subs.asInstanceOf[Fun]) else name
-          var genName = if (t.enclosingClass != null) genDefNameClass(t.enclosingClass, binds, defNameG) else genDefNameBase(defNameG)
+          var genName = if (t.enclosingClass != null && !t.isConstructor) genDefNameClass(t.enclosingClass, binds, defNameG) else genDefNameBase(defNameG)
 
           outln("\n/* output function " + genName + "*/")
 
           if (!t.isEntry) {
-            if (!t.isConstructor) {
-              outlnbb(genType(ret, binds));
+            if (true) {
+              if (!t.isConstructor) {
+                outlnbb(genType(ret, binds));
+              } else {
+                outlnbb(cl);
+              }
               outlnbb(genName + "(");
               tab()
-              if (t.enclosingClass != null) {
+              if (t.enclosingClass != null && !t.isConstructor) {
                 // first parameter is the class
                 outlnbb(cl + "* " + genObjectDefInput)
-                if (!nthunks.isEmpty && nthunks.get.length != 0) outinit(",")
+                if (!nthunks.isEmpty && nthunks.get.length != 0) {
+                  outinit(",")
+                  preinit(",")
+                }
               }
               // generate input types
               genInputs(nthunks, binds)
@@ -205,11 +228,18 @@ class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
                   (name == "exit" || name == "exitError" || name == "print")) {
                 genSpecialDefBody(name, subs);
               }
+              if (t.isConstructor) {
+                outln("/* constructor */")
+                outln(cl + " cons;");
+                for ((name,expr) <- t.enclosingClass.declInits) {
+                  val s1 = genExpr(expr,binds)
+                  outln("cons." + name + " = " + s1 + ";")
+                }
+                outln("return cons;");
+              }
               genDefBody(stmts, binds)
               untab()
               outln("}");
-            } else {
-              // non-entry constructor
             }
           } else {
             // if it's an entry method generation is different
@@ -430,7 +460,7 @@ class CodeGen(tree : Stmt, out : String => Unit, pre : String => Unit) {
             case Immediate(_,_,_) => genDeclName(name)
             case ClassScope(_,_,_,n,stmt,binds) => {
               val hasComma = if (ins.length > 0) "," else ""
-              initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
+              initial = (if (expr.objectContext != null) "&" + expr.objectContext else genObjectDefInput) + hasComma
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings ++ b)
               if (n == "Ref" && (name == "#" || name == "deref")) {
                 "*"

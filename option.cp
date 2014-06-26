@@ -21,5 +21,5 @@ class None[T] : Option[T] {
   def None() { }
   def isEmpty() : boolean { return true; }
   def isFull() : boolean { return false; }
-  def get() : T { exitError("None has no item"); }
+  def get() : T { exit(123); }
 }

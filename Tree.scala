@@ -25,6 +25,7 @@ case class ClassStmt(name : String, isSystem : Boolean, var generic : List[Term]
   var sym : ClassSymbol = null
   var isAbstract : Boolean = false
   var abstractDefs : ListBuffer[DefStmt] = ListBuffer()
+  var declInits : ListBuffer[(String,Expression)] = ListBuffer()
   def getType() : Type = {
     if (generic == List()) Type(Bound(name))
     else Type(Fun(name, generic))

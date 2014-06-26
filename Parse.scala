@@ -88,16 +88,19 @@ object Parse extends StandardTokenParsers with App {
     writer.write("#include <stdio.h>\n")
     writer.write("#include <stdlib.h>\n")
 
-    var body : StringBuilder = new StringBuilder()
+    var clbody : StringBuilder = new StringBuilder()
+    var defbody : StringBuilder = new StringBuilder()
     var prelude : StringBuilder = new StringBuilder()
-    def bodyPrinter(s : String) : Unit = body.append(s)
+    def clbodyPrinter(s : String) : Unit = clbody.append(s)
+    def defbodyPrinter(s : String) : Unit = defbody.append(s)
     def preludePrinter(s : String) : Unit = prelude.append(s)
 
-    val gen = new CodeGen(tree, bodyPrinter, preludePrinter);
+    val gen = new CodeGen(tree, clbodyPrinter, defbodyPrinter, preludePrinter);
     gen.start()
 
+    writer.write(clbody.toString())
     writer.write(prelude.toString())
-    writer.write(body.toString())
+    writer.write(defbody.toString())
     writer.close()
     if (verbose) println("--- generation complete ---")
   }
