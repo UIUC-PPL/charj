@@ -9,6 +9,7 @@ import scala.util.parsing.input.{Positional,Position}
 
 class Restructurer(t : Stmt) {
   import BasicTypes._
+  import BaseContext.verbose
   
   def start() = traverseTree(t)
 

@@ -90,6 +90,7 @@ abstract class Expression extends Positional
          with IsLval
 {
   var objectContext : String = null
+  var isCons : Boolean = false
 }
 
 case class AsyncExpr(e : Expression) extends Expression

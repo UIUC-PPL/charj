@@ -75,7 +75,7 @@ class CodeGen(tree : Stmt,
   def preln(s : String) = { preinit(s); pre("\n") }
   def preclinit(s : String) = precl((List.fill(tabs)("  ").foldRight("")(_+_)) + s)
   def preclln(s : String) = { preclinit(s); precl("\n") }
-  def outlnbb(s : String) = { outln(s); preln(s) }
+  def outlnbb(s : String) = { outln(s); pre(s + " ") }
 
   def genCondGoto() = genImm() + "_condition"
   def genBodyGoto() = genImm() + "_body"
@@ -85,6 +85,8 @@ class CodeGen(tree : Stmt,
   def genDeclName(n : String) = "_decl_" + n
   def genDefNameClass(t : ClassStmt, b : List[(Term,Term)], n : String) = "_def_" + genClassName(t,b) + "_" + n
   def genDefNameBase(n : String) = "_def_base_" + n
+  def genDefNameBaseCons(n : String) = "_def_cons_" + n
+  def genDefNameBaseConsNew(n : String) = "_def_cons_new_" + n
   def genFunNameGens(x : Fun) = x.n + "_" + x.terms.map{genTerm(_)}.foldRight("_")(_+_)
   def genInner(tree : List[Stmt], b : List[(Term,Term)], fun : Stmt => Boolean,
                db : ListBuffer[(String,Expression)]) {
@@ -169,12 +171,9 @@ class CodeGen(tree : Stmt,
   }
 
   // generate defs which will take the class as a parameter if there is one
-  def genDefs(doGens : Boolean,binds : List[(Term,Term)])(tree : Stmt) {
+  def genDefs(doGens : Boolean, binds : List[(Term,Term)])(tree : Stmt) {
     tree match {
       case t@DefStmt(name,gens,nthunks,ret,stmts) => {
-        var cl : String = ""
-        if (t.enclosingClass != null)
-          cl = genClassName(t.enclosingClass, binds)
 
         // some special cases that we will handle later
         if ((t.enclosingClass == null ||
@@ -186,65 +185,87 @@ class CodeGen(tree : Stmt,
           val t1 = Fun(name, t.sym.term)
           val subs = Unifier(true).subst(t1, binds)
           val defNameG = if (gens.length > 0) genFunNameGens(subs.asInstanceOf[Fun]) else name
-          var genName = if (t.enclosingClass != null && !t.isConstructor) genDefNameClass(t.enclosingClass, binds, defNameG) else genDefNameBase(defNameG)
 
-          outln("\n/* output function " + genName + "*/")
-
-          if (!t.isEntry) {
-            if (true) {
-              if (!t.isConstructor) {
-                outlnbb(genType(ret, binds));
-              } else {
-                outlnbb(cl);
-              }
-              outlnbb(genName + "(");
-              tab()
-              if (t.enclosingClass != null && !t.isConstructor) {
-                // first parameter is the class
-                outlnbb(cl + "* " + genObjectDefInput)
-                if (!nthunks.isEmpty && nthunks.get.length != 0) {
-                  outinit(",")
-                  preinit(",")
-                }
-              }
-              // generate input types
-              genInputs(nthunks, binds)
-              untab()
-              outlnbb(")");
-              pre(";\n");
-              outln("{");
-              tab()
-              // generate body of def
-              if (t.enclosingClass == null &&
-                  (name == "exit" || name == "exitError" || name == "print")) {
-                genSpecialDefBody(name, subs);
-              }
-              if (t.isConstructor) {
-                outln("/* constructor */")
-                outln(cl + " cons;");
-                for ((name,expr) <- t.enclosingClass.declInits) {
-                  val s1 = genExpr(expr,binds)
-                  outln("cons." + name + " = " + s1 + ";")
-                }
-                outln(cl + "* _OBJECT_ = &cons;");
-              }
-              genDefBody(stmts, binds)
-              if (t.isConstructor) {
-                outln("return cons;");
-              }
-              untab()
-              outln("}");
-            }
+          if (t.enclosingClass != null && !t.isConstructor)
+            generateDefFunction(t, genDefNameClass(t.enclosingClass, binds, defNameG), binds, subs)
+          else if (t.enclosingClass != null && t.isConstructor) {
+            generateDefFunction(t, genDefNameBaseCons(defNameG), binds, subs)
+            generateDefFunction(t, genDefNameBaseConsNew(defNameG), binds, subs, true)
           } else {
-            // if it's an entry method generation is different
+            generateDefFunction(t, genDefNameBase(defNameG), binds, subs)
           }
-
-          outln("/* END output function " + genName + "*/")
         }
-
       }
       case _ => ;
     }
+  }
+
+  def generateDefFunction(t : DefStmt, genName : String,
+                          binds : List[(Term,Term)], subs : Term,
+                          isHeapCons : Boolean = false) {
+    outln("\n/* output function " + genName + "*/")
+    var cl : String = if (t.enclosingClass != null) genClassName(t.enclosingClass, binds) else ""
+
+    if (!t.isEntry) {
+      if (true) {
+        if (!t.isConstructor) {
+          outlnbb(genType(t.ret, binds));
+        } else {
+          if (isHeapCons) outlnbb(cl + "*");
+          else outlnbb(cl);
+        }
+        outlnbb(genName + "(");
+        tab()
+        if (t.enclosingClass != null && !t.isConstructor) {
+          // first parameter is the class
+          outlnbb(cl + "* " + genObjectDefInput)
+          if (!t.nthunks.isEmpty && t.nthunks.get.length != 0) {
+            outinit(",")
+            preinit(",")
+          }
+        }
+        // generate input types
+        genInputs(t.nthunks, binds)
+        untab()
+        outlnbb(")");
+        pre(";\n");
+        outln("{");
+        tab()
+        // generate body of def
+        if (t.enclosingClass == null &&
+            (t.name == "exit" || t.name == "exitError" || t.name == "print")) {
+              genSpecialDefBody(t.name, subs);
+            }
+        if (t.isConstructor) {
+          outln("/* constructor */")
+          if (isHeapCons)
+            outln(cl + "* cons = new " + cl + ";");
+          else
+            outln(cl + " cons;");
+          for ((name,expr) <- t.enclosingClass.declInits) {
+            val s1 = genExpr(expr,binds)
+            if (isHeapCons)
+              outln("cons->" + name + " = " + s1 + ";")
+            else
+              outln("cons." + name + " = " + s1 + ";")
+          }
+          if (isHeapCons)
+            outln(cl + "* _OBJECT_ = cons;");
+          else
+            outln(cl + "* _OBJECT_ = &cons;");
+        }
+        genDefBody(t.stmts, binds)
+        if (t.isConstructor) {
+          outln("return cons;");
+        }
+        untab()
+        outln("}");
+      }
+    } else {
+      // if it's an entry method generation is different
+    }
+
+    outln("/* END output function " + genName + "*/")
   }
 
   def genSpecialDefBody(name : String, t1 : Term) {
@@ -316,6 +337,7 @@ class CodeGen(tree : Stmt,
         outln("}")
 
         outln(epiGoto + ":")
+        outln(";")
       }
       case t@ReturnStmt(expr) => {
         if (expr.isEmpty) {
@@ -366,6 +388,7 @@ class CodeGen(tree : Stmt,
         outln("}")
 
         outln(epiGoto + ":")
+        outln(";")
         untab()
         outln("}")
       }
@@ -419,14 +442,8 @@ class CodeGen(tree : Stmt,
     //name
   }
 
-  def genExpr(expr : Expression, b : List[(Term,Term)]) : String = {
+  def genFunExpr(expr : Expression, b : List[(Term,Term)], isHeapCons : Boolean) : String = {
     expr match {
-      case t@StrLiteral(_) => outputImmLiteral(t,b)
-      case t@NumLiteral(_) => outputImmLiteral(t,b)
-      case t@True() => outputImmLiteral(t,b)
-      case t@False() => outputImmLiteral(t,b)
-      case t@Null() => outputImmLiteral(t,b)
-      case t@StrExpr(str) => outputImmStrExpr(str,t,b)
       case t@FunExpr(name,gens,param) => {
         var defNameG = name
         var hasGenTerm : Term = null
@@ -457,27 +474,46 @@ class CodeGen(tree : Stmt,
               initial = (if (expr.objectContext != null) "&" + expr.objectContext else genObjectDefInput) + hasComma
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings ++ b)
               if (n == "Ref" && (name == "#" || name == "deref")) {
+                initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
                 "*"
               } else if (n == "Ref" && name == "free") {
-                "free";
+                initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
+                "delete ";
               } else {
                 genDefNameClass(stmt, b, defNameG)
               }
             }
             case BaseScope(_,_,_) => {
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings)
-              genDefNameBase(defNameG)
+              if (t.isCons && isHeapCons) genDefNameBaseConsNew(defNameG)
+              else if (t.isCons) genDefNameBaseCons(defNameG)
+              else genDefNameBase(defNameG)
             }
           }
-          if (genRType(t.sym,b) == "void") {
+          if (genRType(t.sym,b) == "void" || t.isCons) {
             call + "(" + initial + ins.mkString(",") + ");"
           } else {
             val ii = genImm()
-            outln(genRType(t.sym,b) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+            if (call == "*")
+              outln(genRType(t.sym,b) + "& " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+            else
+              outln(genRType(t.sym,b) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
             ii
           }
         }
       }
+    }
+  }
+
+  def genExpr(expr : Expression, b : List[(Term,Term)]) : String = {
+    expr match {
+      case t@StrLiteral(_) => outputImmLiteral(t,b)
+      case t@NumLiteral(_) => outputImmLiteral(t,b)
+      case t@True() => outputImmLiteral(t,b)
+      case t@False() => outputImmLiteral(t,b)
+      case t@Null() => outputImmLiteral(t,b)
+      case t@StrExpr(str) => outputImmStrExpr(str,t,b)
+      case t@FunExpr(name,gens,param) => genFunExpr(expr, b, false)
       case t@DefExpr(d) => {
         // generate a closure here
         ""
@@ -495,12 +531,7 @@ class CodeGen(tree : Stmt,
       case GesExpr(l, r) => travBinary(l, r, expr, ">", b)
       case GeqExpr(l, r) => travBinary(l, r, expr, ">=", b)
       case NeqExpr(l, r) => travBinary(l, r, expr, "!=", b)
-      case t@NewExpr(e) => {
-        val s1 = genExpr(e,b)
-        val ii = genImm()
-        outln(genRType(t.sym,b) + " " + ii + " = new " + s1 + ";")
-        ii
-      }
+      case t@NewExpr(e) => genFunExpr(e, b, true)
       case t@NotExpr(e) => {
         val s1 = genExpr(e,b)
         val ii = genImm()

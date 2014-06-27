@@ -676,6 +676,7 @@ object Checker {
 
     expr.res = sym.get._3
     expr.function_bindings = function_bindings
+    expr.isCons = isConstructor
 
     // (sym.get._2): propagate the bindings from a subtype when finding the new type
     val (nt, ncon) = findNew(retType,expr,function_bindings ++ bindings ++ sym.get._2)
