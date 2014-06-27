@@ -55,7 +55,7 @@ class CodeGen(tree : Stmt,
       }
     }
 
-    outln("int main(int argc, char* argv[]) { __def_base_main(); return 0; }")
+    outln("int main(int argc, char* argv[]) { _def_base_main(); return 0; }")
   }
 
   var seed : Int = 0
@@ -81,10 +81,10 @@ class CodeGen(tree : Stmt,
   def genBodyGoto() = genImm() + "_body"
   def genEpiGoto() = genImm() + "_epi"
   def genClassName(t : ClassStmt, b : List[(Term,Term)]) = genType(Some(t.getType()), b)
-  def genDeclName(n : String, cl : String) = "__decl_" + "_" + cl + "_" + n
-  def genDeclName(n : String) = "__decl_" + n
-  def genDefNameClass(t : ClassStmt, b : List[(Term,Term)], n : String) = "__def_" + genClassName(t,b) + "_" + n
-  def genDefNameBase(n : String) = "__def_base_" + n
+  def genDeclName(n : String, cl : String) = "_decl_" + "_" + cl + "_" + n
+  def genDeclName(n : String) = "_decl_" + n
+  def genDefNameClass(t : ClassStmt, b : List[(Term,Term)], n : String) = "_def_" + genClassName(t,b) + "_" + n
+  def genDefNameBase(n : String) = "_def_base_" + n
   def genFunNameGens(x : Fun) = x.n + "_" + x.terms.map{genTerm(_)}.foldRight("_")(_+_)
   def genInner(tree : List[Stmt], b : List[(Term,Term)], fun : Stmt => Boolean,
                db : ListBuffer[(String,Expression)]) {
@@ -246,14 +246,14 @@ class CodeGen(tree : Stmt,
 
   def genSpecialDefBody(name : String, t1 : Term) {
     name match {
-      case "exit" => outln("exit(__decl_i);")
+      case "exit" => outln("exit(_decl_i);")
       case "print" => {
         val n : String = t1.asInstanceOf[Fun].terms(0).getName
         n match {
-          case "int" => outln("printf(\"%d\\n\",__decl_t);")
+          case "int" => outln("printf(\"%d\\n\",_decl_t);")
         }
       }
-      case "exitError" => outln("fprintf(stderr, __decl_s.c_str());")
+      case "exitError" => outln("fprintf(stderr, _decl_s.c_str());")
     }
   }
 
@@ -553,8 +553,8 @@ class CodeGen(tree : Stmt,
 
   def genTerm(t : Term) : String = {
     t match {
-      case Bound(x) => if (systemTypes.get(x).isEmpty) "__concrete_" + x else systemTypes.get(x).get
-      case f@Fun(n, terms) => addLst(f); "__concrete_" + n + "_" + terms.map{genTerm(_)}.foldRight("___")(_+_)
+      case Bound(x) => if (systemTypes.get(x).isEmpty) "_concrete_" + x else systemTypes.get(x).get
+      case f@Fun(n, terms) => addLst(f); "_concrete_" + n + "_" + terms.map{genTerm(_)}.foldRight("_")(_+_)
       case t@Thunker(_) => "void*"
       case _ => CodeGenError("could not generate type: " + t); ""
     }
