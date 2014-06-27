@@ -25,7 +25,7 @@ object Parse extends StandardTokenParsers with App {
 
   // set verbosity to true for testing
   import BaseContext.verbose
-  verbose = true
+  verbose = false
 
   // assume flattened file names here
   val lstIncludes : ListBuffer[String] = ListBuffer[String]()
@@ -67,6 +67,10 @@ object Parse extends StandardTokenParsers with App {
     if (verbose) println(tree)
 
     BaseContext.base = tree
+
+    println("--- begin tree munging ---")
+    val restructurer = new Restructurer(tree)
+    restructurer.start()
 
     if (verbose) println("--- begin complete symbol collection ---")
     val col = new Collector(tree)

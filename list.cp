@@ -6,11 +6,6 @@ include "option.cp";
 class Linked[T] {
   val item : T;
   val next : Ref[Linked[T]] = null;
-
-  def Linked(cur_ : T, next_ : Ref[Linked[T]]) {
-    item = cur_;
-    next = next_;
-  }
 }
 
 class List[T] : Seq[T] {
@@ -18,13 +13,7 @@ class List[T] : Seq[T] {
   var back : Option[T];
   var size : int = 0;
 
-  def List() { }
   def List(t : T) { push(t); }
-  def List(front_ : Ref[Linked[T]], back_ : Option[T], curSize : int) {
-    size = curSize;
-    front = front_;
-    back = back_;
-  }
 
   // Seq interface
   def first() : T { return front#.item; }

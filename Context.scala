@@ -16,6 +16,7 @@ case class BaseScope(n : Int, c : Context, s : Symbol) extends ResolutionType
 case class ConstructScope(n : Int, c : Context, s : Symbol) extends ResolutionType
 
 class Context(parent : Option[Context], isOrdered : Boolean) {
+  import BaseContext.verbose
   import scala.collection.mutable.{ListBuffer,ArrayBuffer}
   var sym : Symbol = null
   var lst : ListBuffer[(Symbol, Stmt, Context)] = ListBuffer()
@@ -76,7 +77,7 @@ class Context(parent : Option[Context], isOrdered : Boolean) {
           var subtype : Option[(Symbol,List[(Term,Term)],ResolutionType)] = None
 
           extensions.foreach(ext => {
-            println("\t\t --- --- searching extensions: " + ext)
+            if (verbose) println("\t\t --- --- searching extensions: " + ext)
             if (subtype == None) {
               subtype = ext.cs.context.resolve(test, ext.bindings ++ binding, count+1)
             }

@@ -226,9 +226,12 @@ class CodeGen(tree : Stmt,
                   val s1 = genExpr(expr,binds)
                   outln("cons." + name + " = " + s1 + ";")
                 }
-                outln("return cons;");
+                outln(cl + "* _OBJECT_ = &cons;");
               }
               genDefBody(stmts, binds)
+              if (t.isConstructor) {
+                outln("return cons;");
+              }
               untab()
               outln("}");
             }
@@ -390,7 +393,7 @@ class CodeGen(tree : Stmt,
       case NumLiteral(s) => outln(genRType(lit.sym,b) + " " +  ii + " = " + s + ";")
       case True() => outln(genRType(lit.sym,b) + " " +  ii + " = true ;")
       case False() => outln(genRType(lit.sym,b) + " " +  ii + " = false ;")
-      case Null() => outln("void* " +  ii + " = null;")
+      case Null() => outln("void* " +  ii + " = 0;")
       case _ => ""
     }
     ii

@@ -10,8 +10,8 @@ class BLOCK[T] {
 }
 
 class Array[T] : Indexable[int, T] {
-  val block : Ref[BLOCK[T]];
   val size : int;
+  val block : Ref[BLOCK[T]];
 
   def Array(size_ : int) {
     size = size_;
@@ -62,9 +62,9 @@ class Array[T] : Indexable[int, T] {
 }
 
 class Array2[T] : Indexable2[int, T] {
-  val block : Ref[BLOCK[T]];
   val sz1 : int;
   val sz2 : int;
+  val block : Ref[BLOCK[T]];
 
   def Array2(sz1_ : int, sz2_ : int) {
     sz1 = sz1_;

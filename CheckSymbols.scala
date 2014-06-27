@@ -50,9 +50,11 @@ class Checker(tree : Stmt) {
 
     // Print the level for each class
     if (verbose) println("###\n### traverse print class level ###\n###")
-    def printClassLevel(cls : Stmt) = println(cls.pos + ": class name = " + cls.asInstanceOf[ClassStmt].name +
-                                              ", level = " + cls.asInstanceOf[ClassStmt].sym.level +
-                                              ", abstract = " + cls.asInstanceOf[ClassStmt].isAbstract)
+    def printClassLevel(cls : Stmt) = {
+      if (verbose) println(cls.pos + ": class name = " + cls.asInstanceOf[ClassStmt].name +
+                           ", level = " + cls.asInstanceOf[ClassStmt].sym.level +
+                           ", abstract = " + cls.asInstanceOf[ClassStmt].isAbstract)
+    }
     new StmtVisitor(tree, filterClass, printClassLevel);
 
     // Resolve the type (symbol) for each decl (var or val)
@@ -287,7 +289,7 @@ object Checker {
   def checkDefsMatch(abs : DefStmt, t : DefStmt, bindings : ListBuffer[(Term,Term)]) = {
     if (abs.name == t.name &&
         abs.gens.length == t.gens.length) {
-      println("checking if defs match: " + abs + ", " + t)
+      if (verbose) println("checking if defs match: " + abs + ", " + t)
       var matchingInputs = true
       var matchingOutput = true
       
@@ -297,9 +299,9 @@ object Checker {
           if (l1.length == l2.length) {
             for ((p1,p2) <- (l1,l2).zipped.toList) {
               val sub1 = Unifier(false).subst(p1.typ.full, bindings.toList)
-              println("\t input: " + p1 + ", " + p2)
+              if (verbose) println("\t input: " + p1 + ", " + p2)
               var iseq = Unifier(false).isEqual(sub1, p2.typ.full)
-              println("\t input bound: " + sub1 + ", " + p2 + " with binds: " + bindings + " => " + iseq)
+              if (verbose) println("\t input bound: " + sub1 + ", " + p2 + " with binds: " + bindings + " => " + iseq)
               if (!iseq) matchingInputs = false
             }
           } else matchingInputs = false
@@ -309,13 +311,13 @@ object Checker {
 
       // check for matching output types
       // @todo what about unit/implicit specification
-      println("\t returns: " + abs.ret + ", " + t.ret)
+      if (verbose) println("\t returns: " + abs.ret + ", " + t.ret)
       (abs.ret,t.ret) match {
         case (Some(r1),Some(r2)) => {
           val sub1 = Unifier(false).subst(r1.full, bindings.toList)
-          println("\t output: " + r1 + ", " + r2)
+          if (verbose) println("\t output: " + r1 + ", " + r2)
           var iseq = Unifier(false).isEqual(sub1, r2.full)
-          println("\t output bound: " + sub1 + ", " + r2 + " with binds: " + bindings + " => " + iseq)
+          if (verbose) println("\t output bound: " + sub1 + ", " + r2 + " with binds: " + bindings + " => " + iseq)
           matchingOutput = iseq
         }
         case (None,None) => matchingOutput = true
@@ -341,7 +343,7 @@ object Checker {
       
       if (!foundMatch) {
         cur.abstractDefs += abs
-        println("&&&&&& " + cur.name + " detected abstract: " + cur.abstractDefs)
+        if (verbose) println("&&&&&& " + cur.name + " detected abstract: " + cur.abstractDefs)
         cur.isAbstract = true
         cur.sym.isAbstract = true
       }
@@ -450,6 +452,8 @@ object Checker {
       case t@NewExpr(e) => {
         if (e.sym == null)
           SemanticError("could not resolve type of " + e, e.pos)
+        if (!e.isInstanceOf[FunExpr])
+          SemanticError("expression after new must be a constructor call", e.pos)
         e.sym match {
           case SingleType(cs,binds) => {
             val sym2 = resolveAnySymbol(Type(Fun("Ref", List(cs.t))), e, null)
@@ -460,7 +464,7 @@ object Checker {
           }
           case _ => SemanticError("can not construct Ref to " + e, e.pos)
         }
-        println("resolved newx expr to type: " + expr.sym)
+        if (verbose) println("resolved newx expr to type: " + expr.sym)
       }
       case t@StrExpr(str) => {
         val (sym,con) = (expr.sym, if (expr.context == null) cls.context else expr.context)
@@ -479,7 +483,7 @@ object Checker {
       }
       case True() | False() => expr.sym = resolveClassType(Type(booleanType),expr,cls)
       case DotExpr(l, r) => {
-        println("DotExpr l = " + l + ", r = " + r)
+        if (verbose) println("DotExpr l = " + l + ", r = " + r)
 
         (l,r) match {
           case (_,DotExpr(ll,_)) => {
@@ -668,7 +672,7 @@ object Checker {
     if (sym.isEmpty)
       SemanticError("could not find matching function for \"" + methodName + "\"", expr.pos)
 
-    println("findfunType: resolved context bindings: " + sym.get._2)
+    if (verbose) println("findfunType: resolved context bindings: " + sym.get._2)
 
     expr.res = sym.get._3
     expr.function_bindings = function_bindings
