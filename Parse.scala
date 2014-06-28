@@ -68,7 +68,7 @@ object Parse extends StandardTokenParsers with App {
 
     BaseContext.base = tree
 
-    println("--- begin tree munging ---")
+    if (verbose) println("--- begin tree munging ---")
     val restructurer = new Restructurer(tree)
     restructurer.start()
 
