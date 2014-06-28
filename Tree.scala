@@ -91,6 +91,7 @@ abstract class Expression extends Positional
 {
   var objectContext : String = null
   var isCons : Boolean = false
+  var cons : ClassStmt = null
 }
 
 case class AsyncExpr(e : Expression) extends Expression

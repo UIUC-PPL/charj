@@ -11,6 +11,9 @@ object BasicTypes {
   val doubleType = Bound("double")
   val refType = Fun("Ref", List(MVar("T")))
 
+  def isBasicTerm(t : Term) : Boolean =
+    t == booleanType || t == intType || t == stringType || t == charType || t == unitType || t == doubleType
+
   def isBasic(rt : ResolvedType) : Boolean = {
     rt match {
       case st@SingleType(_,_) => st.cs.t == booleanType || st.cs.t == intType || st.cs.t == stringType ||

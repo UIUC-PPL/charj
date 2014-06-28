@@ -63,6 +63,11 @@ class CodeGen(tree : Stmt,
     seed += 1
     "_gen_" + seed
   }
+
+  val clsInstVOI : HashMap[String,Int] = HashMap()
+  var voi : Int = 0
+  def getNextVOI() : Int = { voi += 1; voi }
+
   var tabs : Int = 0
   def tab() { tabs += 1 }
   def untab() { tabs -= 1 }
@@ -80,13 +85,13 @@ class CodeGen(tree : Stmt,
   def genCondGoto() = genImm() + "_condition"
   def genBodyGoto() = genImm() + "_body"
   def genEpiGoto() = genImm() + "_epi"
-  def genClassName(t : ClassStmt, b : List[(Term,Term)]) = genType(Some(t.getType()), b)
+  def genClassName(t : ClassStmt, b : List[(Term,Term)]) = genType(Some(t.getType()), b, true)
   def genDeclName(n : String, cl : String) = "_decl_" + "_" + cl + "_" + n
   def genDeclName(n : String) = "_decl_" + n
   def genDefNameClass(t : ClassStmt, b : List[(Term,Term)], n : String) = "_def_" + genClassName(t,b) + "_" + n
   def genDefNameBase(n : String) = "_def_base_" + n
-  def genDefNameBaseCons(n : String) = "_def_cons_" + n
-  def genDefNameBaseConsNew(n : String) = "_def_cons_new_" + n
+  def genDefNameBaseCons(t : ClassStmt, b : List[(Term,Term)],n : String) = "_def_cons" + genClassName(t,b) + "_" + n
+  def genDefNameBaseConsNew(t : ClassStmt, b : List[(Term,Term)],n : String) = "_def_cons_new" + genClassName(t,b) + "_" + n
   def genFunNameGens(x : Fun) = x.n + "_" + x.terms.map{genTerm(_)}.foldRight("_")(_+_)
   def genInner(tree : List[Stmt], b : List[(Term,Term)], fun : Stmt => Boolean,
                db : ListBuffer[(String,Expression)]) {
@@ -126,10 +131,12 @@ class CodeGen(tree : Stmt,
     tree match {
       case t@ClassStmt(name, isSystem, generic, parent, lst) => {
         // Ref will be handled specially
-        if (!isSystem && !t.isAbstract && name != "Ref") {
+        if (!isSystem && /*!t.isAbstract &&*/ name != "Ref") {
           val genName = genClassName(t, b)
 
           outclln("\n/* output class " + genName + "*/")
+
+          if (!t.isAbstract) clsInstVOI.put(genName,getNextVOI())
 
           preclln("struct " + genName + ";")
           outclln("struct " + genName + " { /* parent is " + parent + "*/")
@@ -180,7 +187,8 @@ class CodeGen(tree : Stmt,
             (t.enclosingClass.name != "Ref" &&
              !t.enclosingClass.isAbstract &&
              !t.enclosingClass.isSystem)) &&
-          (doGens || gens.length == 0)) {
+          (doGens || gens.length == 0) &&
+          !t.isAbstract) {
 
           val t1 = Fun(name, t.sym.term)
           val subs = Unifier(true).subst(t1, binds)
@@ -189,8 +197,8 @@ class CodeGen(tree : Stmt,
           if (t.enclosingClass != null && !t.isConstructor)
             generateDefFunction(t, genDefNameClass(t.enclosingClass, binds, defNameG), binds, subs)
           else if (t.enclosingClass != null && t.isConstructor) {
-            generateDefFunction(t, genDefNameBaseCons(defNameG), binds, subs)
-            generateDefFunction(t, genDefNameBaseConsNew(defNameG), binds, subs, true)
+            generateDefFunction(t, genDefNameBaseCons(t.enclosingClass, binds, defNameG), binds, subs)
+            generateDefFunction(t, genDefNameBaseConsNew(t.enclosingClass, binds, defNameG), binds, subs, true)
           } else {
             generateDefFunction(t, genDefNameBase(defNameG), binds, subs)
           }
@@ -242,6 +250,11 @@ class CodeGen(tree : Stmt,
             outln(cl + "* cons = new " + cl + ";");
           else
             outln(cl + " cons;");
+          val voi : Int = clsInstVOI.get(cl).get
+          if (isHeapCons)
+            outln("cons->virtual_object_id = " + voi + ";")
+          else
+            outln("cons.virtual_object_id = " + voi + ";")
           for ((name,expr) <- t.enclosingClass.declInits) {
             val s1 = genExpr(expr,binds)
             if (isHeapCons)
@@ -288,7 +301,11 @@ class CodeGen(tree : Stmt,
         var assign = " /* no assignment */ "
         if (!expr.isEmpty) {
           val outVar = genExpr(expr.get, binds)
-          assign = " = " + outVar
+          if (BasicTypes.isBasicTerm(Unifier(true).subst(typ.get.full, binds)))
+            assign = " = " + outVar
+          else
+            assign = " = (" + genType(typ, binds) + ")" + outVar
+            //assign = " = (" + genType(typ, binds) + ")&(" + outVar + ")"
         }
         outln(genType(typ, binds) + " " + genDeclName(name) + assign + ";")
       }
@@ -402,24 +419,22 @@ class CodeGen(tree : Stmt,
     outputImm(cur, s1, s2, op, b)
   }
 
-  def genRType(t : ResolvedType, clBinds : List[(Term,Term)]) : String = {
+  def genRType(t : ResolvedType, clBinds : List[(Term,Term)], noPtr : Boolean = false) : String = {
     t match {
-      case SingleType(cs,binds) => genType(Some(Type(cs.t)), binds ++ clBinds)
+      case SingleType(cs,binds) => genType(Some(Type(cs.t)), binds ++ clBinds, noPtr)
       case _ => "/*<unknown>*/ void"
     }
   }
 
   def outputImmLiteral(lit : Expression, b : List[(Term,Term)]) : String = {
-    val ii = genImm()
     lit match {
-      case StrLiteral(s) => outln(genRType(lit.sym,b) + " " +  ii + " = " + s + ";")
-      case NumLiteral(s) => outln(genRType(lit.sym,b) + " " +  ii + " = " + s + ";")
-      case True() => outln(genRType(lit.sym,b) + " " +  ii + " = true ;")
-      case False() => outln(genRType(lit.sym,b) + " " +  ii + " = false ;")
-      case Null() => outln("void* " +  ii + " = 0;")
+      case StrLiteral(s) => s
+      case NumLiteral(s) => s
+      case True() => "true"
+      case False() => "false"
+      case Null() => "0";
       case _ => ""
     }
-    ii
   }
 
   def outputImm(t : Expression, l : String, r : String, op : String, b : List[(Term,Term)]) : String = {
@@ -434,7 +449,7 @@ class CodeGen(tree : Stmt,
     val name = x.res match {
       case Immediate(_,_,_) => genDeclName(id)
       case ClassScope(_,_,_,n,stmt,binds) =>
-        (if (x.objectContext != null) x.objectContext + "." else genObjectDefInput + "->") + genDeclName(id, n)
+        (if (x.objectContext != null) x.objectContext + "->" else genObjectDefInput + "->") + genDeclName(id, n)
       case _ => ""
     }
     outln(genRType(x.sym,b) + "& " + ii + " = " + name + ";")
@@ -471,11 +486,12 @@ class CodeGen(tree : Stmt,
             case Immediate(_,_,_) => genDeclName(name)
             case ClassScope(_,_,_,n,stmt,binds) => {
               val hasComma = if (ins.length > 0) "," else ""
-              initial = (if (expr.objectContext != null) "&" + expr.objectContext else genObjectDefInput) + hasComma
+              initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings ++ b)
               if (n == "Ref" && (name == "#" || name == "deref")) {
                 initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
-                "*"
+                //"*"
+                " "
               } else if (n == "Ref" && name == "free") {
                 initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
                 "delete ";
@@ -485,18 +501,24 @@ class CodeGen(tree : Stmt,
             }
             case BaseScope(_,_,_) => {
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings)
-              if (t.isCons && isHeapCons) genDefNameBaseConsNew(defNameG)
-              else if (t.isCons) genDefNameBaseCons(defNameG)
+              if (t.isCons && isHeapCons) genDefNameBaseConsNew(t.cons,expr.function_bindings ++ b,defNameG)
+              else if (t.isCons) genDefNameBaseCons(t.cons,expr.function_bindings ++ b,defNameG)
               else genDefNameBase(defNameG)
             }
           }
-          if (genRType(t.sym,b) == "void" || t.isCons) {
+          if (genRType(t.sym,b) == "void") {
             call + "(" + initial + ins.mkString(",") + ");"
           } else {
             val ii = genImm()
             if (call == "*")
               outln(genRType(t.sym,b) + "& " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
-            else
+            else if (t.isCons && isHeapCons)
+              outln(genRType(t.sym,b) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+            else if (t.isCons && !isHeapCons) {
+              val ii2 = genImm()
+              outln(genRType(t.sym,b,true) + " " + ii2 + " = " + call + "(" + initial + ins.mkString(",") + ");")
+              outln(genRType(t.sym,b,true) + "* " + ii + " = " + "&(" + ii2 + ");")
+            } else
               outln(genRType(t.sym,b) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
             ii
           }
@@ -531,7 +553,12 @@ class CodeGen(tree : Stmt,
       case GesExpr(l, r) => travBinary(l, r, expr, ">", b)
       case GeqExpr(l, r) => travBinary(l, r, expr, ">=", b)
       case NeqExpr(l, r) => travBinary(l, r, expr, "!=", b)
-      case t@NewExpr(e) => genFunExpr(e, b, true)
+      case t@NewExpr(e) => {
+        val ii = genImm()
+        //outln(genRType(t.sym,b) + " " + ii + " = (" + genRType(t.sym,b) + ")&(" + genFunExpr(e, b, true) + ");")
+        outln(genRType(t.sym,b) + " " + ii + " = " + genFunExpr(e, b, true) + ";")
+        ii
+      }
       case t@NotExpr(e) => {
         val s1 = genExpr(e,b)
         val ii = genImm()
@@ -571,17 +598,17 @@ class CodeGen(tree : Stmt,
   def genTypeParam(tp : TypeParam, b : List[(Term,Term)]) : String =
     genType(Some(tp.typ), b) + " " + genDeclName(tp.name)
 
-  def genType(typ : Option[Type], b : List[(Term,Term)]) : String = {
+  def genType(typ : Option[Type], b : List[(Term,Term)], noPtr : Boolean = false) : String = {
     typ match {
-      case Some(Type(x)) => genTermOuter(Unifier(true).subst(x, b))
+      case Some(Type(x)) => genTermOuter(Unifier(true).subst(x, b), noPtr)
       case _ => "void"
     }
   }
 
-  def genTermOuter(t : Term) : String = {
+  def genTermOuter(t : Term, noPtr : Boolean) : String = {
     t match {
       case f@Fun(n, terms) if (n == "Ref") => genTerm(terms(0)) + "*"
-      case _ => genTerm(t)
+      case _ => if (BasicTypes.isBasicTerm(t) || noPtr) genTerm(t) else genTerm(t) + "*"
     }
   }
 

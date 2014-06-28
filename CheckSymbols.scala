@@ -103,8 +103,9 @@ object Checker {
         if (!lval.isMutable && !t.enclosingDef.isConstructor)
           SemanticError("illegal modification of readonly val", lval.pos)
 
-        if (!ClassEquality.equal(rval.sym, lval.sym) && !rval.sym.isNull)
-          SemanticError("tried to assign to different class type: " + t.sym, rval.pos)
+        if (!ClassEquality.equal(rval.sym, lval.sym, List(), List(), ClassEquality.LHS()) && !rval.sym.isNull)
+          SemanticError("tried to assign to different class type: RHS: " + rval.sym + ", and LHS:"
+                        + lval.sym, rval.pos)
       }
       case t@IfStmt(cond, _, _) => {
         if (verbose) println(t.pos + ": check if stmt: cond sym = " + cond.sym)
@@ -135,9 +136,10 @@ object Checker {
           SemanticError("decl statement condition type not determined", t.pos)
         if (optType.isEmpty)
           SemanticError("type required on decl", t.pos)
-        if (!ClassEquality.equal(expr1.sym, resolveClassType(optType.get,tree,tree)) && !expr1.sym.isNull) {
+        if (!ClassEquality.equal(expr1.sym, resolveClassType(optType.get,tree,tree),
+                                 List(), List(), ClassEquality.LHS()) && !expr1.sym.isNull) {
           val typ = resolveClassType(optType.get,tree,tree)
-          SemanticError("decl type and expression must match: " + expr1.sym + " and " + typ, t.pos)
+          SemanticError("declaration type and expression must match: " + expr1.sym + " and " + typ, t.pos)
         }
       }
       case t@ReturnStmt(optExp) => {
@@ -587,6 +589,7 @@ object Checker {
     var function_bindings : List[(Term, Term)] = List()
     var retType : ResolvedType = null
     var isConstructor : Boolean = false
+    var constructorClass : ClassStmt = null
 
     //function to check if input parameters match defined types
     def compareTerms(zipped : List[(ResolvedType,ResolvedType)],
@@ -618,6 +621,7 @@ object Checker {
 
           if (t.isCons) isConstructor = true
           if (t.isCons && t.classCons.generic != List()) {
+            constructorClass = t.classCons
             if (verbose) println("\t is constructor def: abstract = " + t.classCons.sym)
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
             // if the class constructor being called is abstract this is invalid
@@ -677,6 +681,7 @@ object Checker {
     expr.res = sym.get._3
     expr.function_bindings = function_bindings
     expr.isCons = isConstructor
+    expr.cons = constructorClass
 
     // (sym.get._2): propagate the bindings from a subtype when finding the new type
     val (nt, ncon) = findNew(retType,expr,function_bindings ++ bindings ++ sym.get._2)
