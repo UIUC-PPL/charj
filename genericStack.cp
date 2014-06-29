@@ -29,8 +29,8 @@ class ListStack[T] : Stack[T] {
 }
 
 def addToStack(x : ListStack[int], n : int) {
-  x.push(10);
-  x.push(15);
+  //x.push(10);
+  //x.push(15);
   for (var i : int = 0; i < n; i += 1)
     for (var j : int = 0; j < n; j += 1)
       x.push(i*5+j);
@@ -39,7 +39,9 @@ def addToStack(x : ListStack[int], n : int) {
 def main() {
   var y : ListStack[int] = ListStack[int]();
   addToStack(y, 5);
+  print(y.size);
   y.push(100);
+  y.push(101);
   while (y.size > 0)
     print(y.pop());
 }
