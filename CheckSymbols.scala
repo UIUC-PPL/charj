@@ -678,6 +678,7 @@ object Checker {
 
     if (verbose) println("findfunType: resolved context bindings: " + sym.get._2)
 
+    expr.rsym = sym.get._1
     expr.res = sym.get._3
     expr.function_bindings = function_bindings
     expr.isCons = isConstructor

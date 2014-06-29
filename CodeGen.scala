@@ -486,7 +486,15 @@ class CodeGen(tree : Stmt,
           ii
         } else {
           var ins : List[String] = List()
+          var intypes : List[String] = List()
           var initial : String = ""
+          if (!param.isEmpty) ins = param.get.map{genExpr(_, b)}
+          if (expr.rsym == null) CodeGenError("rsym on funexpr is null?")
+          intypes = expr.rsym match {
+            case d@DefSymbol(_,_) => d.inTypes.map{genRType(_,expr.function_bindings ++ b)}
+            case _ => CodeGenError("other types of rsyms not supported"); List()
+          }
+          var ingen = (intypes,ins).zipped.map{ "(" + _ + ")" + _ }
           if (!param.isEmpty) ins = param.get.map{genExpr(_, b)}
           val call = t.res match {
             case Immediate(_,_,_) => genDeclName(name)
@@ -514,19 +522,19 @@ class CodeGen(tree : Stmt,
             }
           }
           if (genRType(t.sym,b) == "void") {
-            call + "(" + initial + ins.mkString(",") + ");"
+            call + "(" + initial + ingen.mkString(",") + ");"
           } else {
             val ii = genImm()
             if (call == "*")
-              outln(genRType(t.sym,b) + "& " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+              outln(genRType(t.sym,b) + "& " + ii + " = " + call + "(" + initial + ingen.mkString(",") + ");")
             else if (t.isCons && isHeapCons) {
-              outln(genRType(t.sym,b) + "* " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+              outln(genRType(t.sym,b) + "* " + ii + " = " + call + "(" + initial + ingen.mkString(",") + ");")
             } else if (t.isCons && !isHeapCons) {
               val ii2 = genImm()
-              outln(genRType(t.sym,b,true) + " " + ii2 + " = " + call + "(" + initial + ins.mkString(",") + ");")
+              outln(genRType(t.sym,b,true) + " " + ii2 + " = " + call + "(" + initial + ingen.mkString(",") + ");")
               outln(genRType(t.sym,b,true) + "* " + ii + " = " + "&(" + ii2 + ");")
             } else
-              outln(genRType(t.sym,b) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+              outln(genRType(t.sym,b) + " " + ii + " = " + call + "(" + initial + ingen.mkString(",") + ");")
             ii
           }
         }

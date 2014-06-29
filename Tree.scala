@@ -78,6 +78,7 @@ trait HasContext { var context : Context = null }
 trait HasResolution {
   var res : ResolutionType = null
   var function_bindings : List[(Term,Term)] = List()
+  var rsym : Symbol = null
 }
 trait IsLval {
   var islval : Boolean = true
