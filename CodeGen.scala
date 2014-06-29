@@ -94,7 +94,7 @@ class CodeGen(tree : Stmt,
   def genDefNameBaseConsNew(t : ClassStmt, b : List[(Term,Term)],n : String) = "_def_cons_new" + genClassName(t,b) + "_" + n
   def genFunNameGens(x : Fun) = x.n + "_" + x.terms.map{genTerm(_)}.foldRight("_")(_+_)
   def genInner(tree : List[Stmt], b : List[(Term,Term)], fun : Stmt => Boolean,
-               db : ListBuffer[(String,Expression)]) {
+               db : ListBuffer[(String,Option[Type],Expression)]) {
     for (t <- tree) if (fun(t)) genClassAll(b,db)(t)
   }
   def genObjectDefInput = "_OBJECT_"
@@ -127,7 +127,7 @@ class CodeGen(tree : Stmt,
    * at this point, the structure should be completely well-defined
    * with no free variables
    */
-  def genClassAll(b : List[(Term,Term)], dbuf : ListBuffer[(String,Expression)])(tree : Stmt) {
+  def genClassAll(b : List[(Term,Term)], dbuf : ListBuffer[(String,Option[Type],Expression)])(tree : Stmt) {
     tree match {
       case t@ClassStmt(name, isSystem, generic, parent, lst) => {
         // Ref will be handled specially
@@ -161,7 +161,7 @@ class CodeGen(tree : Stmt,
         if (name != "this") {
           val n1 = genDeclName(name, t.enclosingClass.name)
           outclln(genType(typ, b) + " " + n1 + ";")
-          if (!expr.isEmpty) dbuf += Tuple2(n1, expr.get)
+          if (!expr.isEmpty) dbuf += Tuple3(n1, typ, expr.get)
         }
       }
       case t@DefStmt(_,_,_,_,_) => genDefs(false,b)(t)
@@ -169,7 +169,8 @@ class CodeGen(tree : Stmt,
     }
   }
 
-  def generateParentSketchRecur(ty : SingleType, b : List[(Term,Term)], dbuf : ListBuffer[(String,Expression)]) {
+  def generateParentSketchRecur(ty : SingleType, b : List[(Term,Term)],
+                                dbuf : ListBuffer[(String,Option[Type],Expression)]) {
     if (!ty.cs.stmt.parent.isEmpty)
       generateParentSketchRecur(ty.cs.stmt.context.extensions(0), b ++ ty.bindings, dbuf)
     else
@@ -219,7 +220,7 @@ class CodeGen(tree : Stmt,
         if (!t.isConstructor) {
           outlnbb(genType(t.ret, binds));
         } else {
-          if (isHeapCons) outlnbb(cl + "*");
+          if (isHeapCons) outlnbb(cl + "**");
           else outlnbb(cl);
         }
         outlnbb(genName + "(");
@@ -248,28 +249,32 @@ class CodeGen(tree : Stmt,
           outln("/* constructor */")
           if (isHeapCons)
             outln(cl + "* cons = new " + cl + ";");
-          else
-            outln(cl + " cons;");
-          val voi : Int = clsInstVOI.get(cl).get
-          if (isHeapCons)
-            outln("cons->virtual_object_id = " + voi + ";")
-          else
-            outln("cons.virtual_object_id = " + voi + ";")
-          for ((name,expr) <- t.enclosingClass.declInits) {
-            val s1 = genExpr(expr,binds)
-            if (isHeapCons)
-              outln("cons->" + name + " = " + s1 + ";")
-            else
-              outln("cons." + name + " = " + s1 + ";")
+          else {
+            outln(cl + " cons_stack;");
+            outln(cl + "* cons = &cons_stack;");
           }
-          if (isHeapCons)
-            outln(cl + "* _OBJECT_ = cons;");
-          else
-            outln(cl + "* _OBJECT_ = &cons;");
+
+          val voi : Int = clsInstVOI.get(cl).get
+          outln("cons->virtual_object_id = " + voi + ";")
+
+          for ((name,typ,expr) <- t.enclosingClass.declInits) {
+            val s1 = genExpr(expr,binds)
+            //if (typ.get.full.isInstanceOf[Fun] && typ.get.full.asInstanceOf[Fun].n == "Ref") {
+            //outln("cons->" + name + " = new " + genType(Some(Type(typ.get.full.getTerms(0))),binds) + ";")
+            //} else {
+            outln("cons->" + name + " = " + s1 + ";")
+            //}
+          }
+
+          outln(cl + "* _OBJECT_ = cons;");
         }
         genDefBody(t.stmts, binds)
         if (t.isConstructor) {
-          outln("return cons;");
+          if (isHeapCons) {
+            outln(cl + "** cons_ref = new " + cl + "*;");
+            outln("*cons_ref = cons;");
+            outln("return cons_ref;");
+          } else outln("return *cons;");
         }
         untab()
         outln("}");
@@ -477,6 +482,7 @@ class CodeGen(tree : Stmt,
           val p = genExpr(param.get(0), b)
           val ii = genImm()
           outln(genRType(t.sym,b) + " " + ii + " = &(" + p + ");")
+          //outln(genRType(t.sym,b) + " " + ii + " = (" + p + ");")
           ii
         } else {
           var ins : List[String] = List()
@@ -490,10 +496,11 @@ class CodeGen(tree : Stmt,
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings ++ b)
               if (n == "Ref" && (name == "#" || name == "deref")) {
                 initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
-                //"*"
-                " "
+                "*"
+                //" "
               } else if (n == "Ref" && name == "free") {
                 initial = (if (expr.objectContext != null) expr.objectContext else genObjectDefInput) + hasComma
+                outln("delete (*" + initial + ");")
                 "delete ";
               } else {
                 genDefNameClass(stmt, b, defNameG)
@@ -512,9 +519,9 @@ class CodeGen(tree : Stmt,
             val ii = genImm()
             if (call == "*")
               outln(genRType(t.sym,b) + "& " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
-            else if (t.isCons && isHeapCons)
-              outln(genRType(t.sym,b) + " " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
-            else if (t.isCons && !isHeapCons) {
+            else if (t.isCons && isHeapCons) {
+              outln(genRType(t.sym,b) + "* " + ii + " = " + call + "(" + initial + ins.mkString(",") + ");")
+            } else if (t.isCons && !isHeapCons) {
               val ii2 = genImm()
               outln(genRType(t.sym,b,true) + " " + ii2 + " = " + call + "(" + initial + ins.mkString(",") + ");")
               outln(genRType(t.sym,b,true) + "* " + ii + " = " + "&(" + ii2 + ");")
@@ -607,7 +614,7 @@ class CodeGen(tree : Stmt,
 
   def genTermOuter(t : Term, noPtr : Boolean) : String = {
     t match {
-      case f@Fun(n, terms) if (n == "Ref") => genTerm(terms(0)) + "*"
+      case f@Fun(n, terms) if (n == "Ref") => genTerm(terms(0)) + "**"
       case _ => if (BasicTypes.isBasicTerm(t) || noPtr) genTerm(t) else genTerm(t) + "*"
     }
   }
