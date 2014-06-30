@@ -28,9 +28,9 @@ class ListStack[T] : Stack[T] {
   }
 }
 
-def addToStack(x : ListStack[int], n : int) {
-  //x.push(10);
-  //x.push(15);
+def addToStack(x : Stack[int], n : int) {
+  x.push(10);
+  x.push(15);
   for (var i : int = 0; i < n; i += 1)
     for (var j : int = 0; j < n; j += 1)
       x.push(i*5+j);

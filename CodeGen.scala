@@ -89,6 +89,7 @@ class CodeGen(tree : Stmt,
   def genDeclName(n : String, cl : String) = "_decl_" + "_" + cl + "_" + n
   def genDeclName(n : String) = "_decl_" + n
   def genDefNameClass(t : ClassStmt, b : List[(Term,Term)], n : String) = "_def_" + genClassName(t,b) + "_" + n
+  def genDefNameClassDispatcher(t : ClassStmt, b : List[(Term,Term)], n : String) = "_def_dispatcher_" + genClassName(t,b) + "_" + n
   def genDefNameBase(n : String) = "_def_base_" + n
   def genDefNameBaseCons(t : ClassStmt, b : List[(Term,Term)],n : String) = "_def_cons" + genClassName(t,b) + "_" + n
   def genDefNameBaseConsNew(t : ClassStmt, b : List[(Term,Term)],n : String) = "_def_cons_new" + genClassName(t,b) + "_" + n
@@ -136,7 +137,9 @@ class CodeGen(tree : Stmt,
 
           outclln("\n/* output class " + genName + "*/")
 
-          if (!t.isAbstract) clsInstVOI.put(genName,getNextVOI())
+          // idempotent insert
+          if (!t.isAbstract && clsInstVOI.get(genName).isEmpty)
+            clsInstVOI.put(genName,getNextVOI())
 
           preclln("struct " + genName + ";")
           outclln("struct " + genName + " { /* parent is " + parent + "*/")
@@ -186,20 +189,30 @@ class CodeGen(tree : Stmt,
         // some special cases that we will handle later
         if ((t.enclosingClass == null ||
             (t.enclosingClass.name != "Ref" &&
-             !t.enclosingClass.isAbstract &&
+             //!t.enclosingClass.isAbstract &&
              !t.enclosingClass.isSystem)) &&
-          (doGens || gens.length == 0) &&
-          !t.isAbstract) {
+          (doGens || gens.length == 0)) {
+          //!t.isAbstract) {
 
           val t1 = Fun(name, t.sym.term)
           val subs = Unifier(true).subst(t1, binds)
           val defNameG = if (gens.length > 0) genFunNameGens(subs.asInstanceOf[Fun]) else name
 
-          if (t.enclosingClass != null && !t.isConstructor)
-            generateDefFunction(t, genDefNameClass(t.enclosingClass, binds, defNameG), binds, subs)
-          else if (t.enclosingClass != null && t.isConstructor) {
-            generateDefFunction(t, genDefNameBaseCons(t.enclosingClass, binds, defNameG), binds, subs)
-            generateDefFunction(t, genDefNameBaseConsNew(t.enclosingClass, binds, defNameG), binds, subs, true)
+          if (t.enclosingClass != null && !t.isConstructor) {
+            if (!t.isAbstract)
+              generateDefFunction(t, genDefNameClass(t.enclosingClass, binds, defNameG), binds, subs)
+            // if the method is virtual AND the base point is this
+            // method, then we need to generate a dynamic dispatcher
+            //println("t.isVirtual = " + t.isVirtual + ", vbp = " + t.virtualBasePoint)
+            if (!t.isVirtual.isEmpty && t.isVirtual.get && t.virtualBasePoint == t)
+              generateDefFunction(t, genDefNameClassDispatcher(t.enclosingClass, binds, defNameG), binds, subs,
+                                  isDispatcher=true, defName=defNameG)
+          } else if (t.enclosingClass != null && t.isConstructor) {
+            if (!t.enclosingClass.isAbstract && !t.isAbstract) {
+              generateDefFunction(t, genDefNameBaseCons(t.enclosingClass, binds, defNameG), binds, subs)
+              generateDefFunction(t, genDefNameBaseConsNew(t.enclosingClass, binds, defNameG), binds, subs,
+                                  isHeapCons=true)
+            }
           } else {
             generateDefFunction(t, genDefNameBase(defNameG), binds, subs)
           }
@@ -211,7 +224,9 @@ class CodeGen(tree : Stmt,
 
   def generateDefFunction(t : DefStmt, genName : String,
                           binds : List[(Term,Term)], subs : Term,
-                          isHeapCons : Boolean = false) {
+                          isHeapCons : Boolean = false,
+                          isDispatcher : Boolean = false,
+                          defName : String = "") {
     outln("\n/* output function " + genName + "*/")
     var cl : String = if (t.enclosingClass != null) genClassName(t.enclosingClass, binds) else ""
 
@@ -226,8 +241,12 @@ class CodeGen(tree : Stmt,
         outlnbb(genName + "(");
         tab()
         if (t.enclosingClass != null && !t.isConstructor) {
-          // first parameter is the class
-          outlnbb(cl + "* " + genObjectDefInput)
+          if (isDispatcher) {
+            outlnbb("void* " + genObjectDefInput)
+          } else {
+            // first parameter is the class
+            outlnbb(cl + "* " + genObjectDefInput)
+          }
           if (!t.nthunks.isEmpty && t.nthunks.get.length != 0) {
             outinit(",")
             preinit(",")
@@ -268,7 +287,30 @@ class CodeGen(tree : Stmt,
 
           outln(cl + "* _OBJECT_ = cons;");
         }
-        genDefBody(t.stmts, binds)
+        if (isDispatcher) {
+          outln("switch (*(int32_t*)_OBJECT_) {")
+          tab()
+          for ((vdp,bind1) <- t.virtualDispatchPoints) {
+            if (!vdp.isAbstract) {
+              val reversed = bind1.map{ a => Tuple2(a._2,a._1) }
+              val binds2 = reversed.toList ++ binds
+              //println("binds2 = " + binds2)
+              val clname = genClassName(vdp, binds2)
+              if (clsInstVOI.get(clname).isEmpty) clsInstVOI.put(clname,getNextVOI())
+              val voi = clsInstVOI.get(clname).get
+              val concretename = genDefNameClass(vdp, binds2, defName)
+              outln("case " + voi + ": { " + concretename + "(" +
+                    "(" + clname + "*) _OBJECT_" +
+                    (if (!t.nthunks.isEmpty && t.nthunks.get.length != 0) "," else "") +
+                    genInputsName(t.nthunks, binds) +
+                    "); } break;")
+            }
+          }
+          untab()
+          outln("}")
+        } else {
+          genDefBody(t.stmts, binds)
+        }
         if (t.isConstructor) {
           if (isHeapCons) {
             outln(cl + "** cons_ref = new " + cl + "*;");
@@ -488,11 +530,23 @@ class CodeGen(tree : Stmt,
           var ins : List[String] = List()
           var intypes : List[String] = List()
           var initial : String = ""
+          var virtualBase : Option[ClassStmt] = None
+          var virtualBinds : List[(Term,Term)] = List()
           if (!param.isEmpty) ins = param.get.map{genExpr(_, b)}
           if (expr.rsym == null) CodeGenError("rsym on funexpr is null?")
           intypes = expr.rsym match {
-            case d@DefSymbol(_,_) => d.inTypes.map{genRType(_,expr.function_bindings ++ b)}
-            case _ => CodeGenError("other types of rsyms not supported"); List()
+            case d@DefSymbol(_,_) => {
+              // assertion here is that the virtual pass has been done in Checker
+              // constructors can *not* be virtual
+              if (!d.stmt.isVirtual.isEmpty && d.stmt.isVirtual.get && !t.isCons) {
+                // this will be the "base" class for this method that has the dynamic dispatcher
+                virtualBase = Some(d.stmt.virtualBasePoint.enclosingClass)
+                // bindings for this parent class for this virtual "base"
+                virtualBinds = d.stmt.virtualBaseBinds.toList
+              }
+              d.inTypes.map{genRType(_,expr.function_bindings ++ b)}
+            }
+            case _ => CodeGenError("other types of rsyms not supported, i.e. decls bound to funs/anons"); List()
           }
           var ingen = (intypes,ins).zipped.map{ "(" + _ + ")" + _ }
           val call = t.res match {
@@ -510,7 +564,10 @@ class CodeGen(tree : Stmt,
                 outln("delete (*" + initial + ");")
                 "delete ";
               } else {
-                genDefNameClass(stmt, b, defNameG)
+                if (!virtualBase.isEmpty)
+                  genDefNameClassDispatcher(virtualBase.get, virtualBinds ++ b, defNameG)
+                else
+                  genDefNameClass(stmt, b, defNameG)
               }
             }
             case BaseScope(_,_,_) => {
@@ -607,6 +664,21 @@ class CodeGen(tree : Stmt,
         }
       }
       case _ => ;
+    }
+  }
+
+  def genInputsName(ins : Option[List[TypeParam]], b : List[(Term,Term)]) : String  = {
+    ins match {
+      case Some(lst) => {
+        if (lst.length != 0) {
+          var str : String = genDeclName(lst.head.name)
+          lst.takeRight(lst.length-1).foreach{ty =>
+            str += "," + genDeclName(ty.name)
+          }
+          str
+        } else ""
+      }
+      case _ => ""
     }
   }
 

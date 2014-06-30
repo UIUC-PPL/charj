@@ -284,6 +284,7 @@ object Checker {
       child.parentBindings ++= cls.cs.parentBindings
       child.level = sym.level + 1
       addAbstractDefs(child.stmt, sym.stmt, child.parentBindings)
+      findVirtualDefs(child.stmt, sym.stmt, child.parentBindings)
       setChildrenLevelRecur(child)
     }
   }
@@ -330,6 +331,35 @@ object Checker {
     } else false
   }
 
+  // determine which defs are virtual and what the base point for dispatch is for them
+  def findVirtualDefs(cur : ClassStmt, parent : ClassStmt, bindings : ListBuffer[(Term,Term)]) {
+    cur.defsInherit = parent.defsInherit
+
+    def checkDef(tree : Stmt) {
+      tree match {
+        case t@DefStmt(_,_,_,_,_) => {
+          var match1 : Option[DefStmt] = None
+          for (d <- parent.defsInherit)
+            if (checkDefsMatch(d, t, bindings)) match1 = Some(d)
+          if (match1.isEmpty) cur.defsInherit += t
+          t.isVirtual = Some(!match1.isEmpty)
+          if (!match1.isEmpty) {
+            // mark parent as virtual in case it was the first definition
+            match1.get.isVirtual = Some(true)
+            t.virtualBasePoint = match1.get.virtualBasePoint
+            match1.get.virtualDispatchPoints += Tuple2(t.enclosingClass,bindings)
+            t.virtualBaseBinds = bindings
+          }
+          else {
+            t.virtualBasePoint = t
+            t.virtualBaseBinds = bindings
+          }
+        }
+      }
+    }
+    new StmtVisitor(cur, _.isInstanceOf[DefStmt], checkDef)
+  }
+
   def addAbstractDefs(cur : ClassStmt, parent : ClassStmt, bindings : ListBuffer[(Term,Term)]) {
     for (abs <- parent.abstractDefs) {
       var foundMatch = false
@@ -371,6 +401,7 @@ object Checker {
           // propagate bindings up to parent
           t.sym.parentBindings ++= cls.cs.parentBindings
           addAbstractDefs(t, cls.cs.stmt, t.sym.parentBindings)
+          findVirtualDefs(t, cls.cs.stmt, t.sym.parentBindings)
         }
       }
       case t@ClassStmt(name, _, _, None, _) => {
@@ -378,6 +409,11 @@ object Checker {
         // bottom is reached
         t.sym.level = 1
         setChildrenLevelRecur(t.sym);
+        // add in "inherited" defs at the base level, which is just this set
+        new StmtVisitor(t, _.isInstanceOf[DefStmt], { _ match { 
+          case d@DefStmt(_,_,_,_,_) => { t.defsInherit += d; d.isVirtual = Some(false);
+                                         d.virtualBasePoint = d; d.virtualDispatchPoints += Tuple2(t,ListBuffer()) }
+        } })
       }
       case _ => ;
     }

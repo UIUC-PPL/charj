@@ -26,6 +26,10 @@ case class ClassStmt(name : String, isSystem : Boolean, var generic : List[Term]
   var isAbstract : Boolean = false
   var abstractDefs : ListBuffer[DefStmt] = ListBuffer()
   var declInits : ListBuffer[(String,Option[Type],Expression)] = ListBuffer()
+
+  // what defs are being propagated up
+  var defsInherit : ListBuffer[DefStmt] = ListBuffer()
+
   def getType() : Type = {
     if (generic == List()) Type(Bound(name))
     else Type(Fun(name, generic))
@@ -40,6 +44,15 @@ case class DefStmt(name : String,
                    stmts : Stmt) extends Stmt {
   var isEntry : Boolean = false
   var isAbstract : Boolean = false
+
+  // is this virtual or not?
+  var isVirtual : Option[Boolean] = None
+  // what base class will handle dynamic dispatch for this virtual event
+  var virtualBasePoint : DefStmt = null
+  // is this is a base point, this will contain a list of possible classes to dispatch to
+  var virtualDispatchPoints : ListBuffer[(ClassStmt,ListBuffer[(Term,Term)])] = ListBuffer()
+  var virtualBaseBinds : ListBuffer[(Term,Term)] = ListBuffer()
+
   var sym : DefSymbol = null
   var isConstructor : Boolean = false
   override def getName() = pos + "-> def " + name  + "[isConstructor = " + isConstructor + "]"
