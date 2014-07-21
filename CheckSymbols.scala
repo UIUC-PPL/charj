@@ -655,9 +655,11 @@ object Checker {
           // reset function bindings for this possibility
           function_bindings = List()
 
-          if (t.isCons) isConstructor = true
-          if (t.isCons && t.classCons.generic != List()) {
+          if (t.isCons) {
             constructorClass = t.classCons
+            isConstructor = true
+          }
+          if (t.isCons && t.classCons.generic != List()) {
             if (verbose) println("\t is constructor def: abstract = " + t.classCons.sym)
             if (t.classCons == null) SemanticError("this is a constructor, should have a class specified", t.pos);
             // if the class constructor being called is abstract this is invalid

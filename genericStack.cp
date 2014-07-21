@@ -6,11 +6,11 @@ class Node[T] {
   val next : Ref[Node[T]];
 }
 
-class Stack[T] {
+class Stack[T]  {
   var size : int = 0;
+  def isEmpty() : boolean;
   def push(item : T);
   def pop() : T;
-  def isEmpty() : boolean;
 }
 
 class ListStack[T] : Stack[T] {
@@ -37,7 +37,7 @@ def addToStack(x : Stack[int], n : int) {
 }
 
 def main() {
-  var y : ListStack[int] = ListStack[int]();
+  var y : Stack[int] = ListStack[int]();
   addToStack(y, 5);
   print(y.size);
   y.push(100);
@@ -45,3 +45,4 @@ def main() {
   while (y.size > 0)
     print(y.pop());
 }
+

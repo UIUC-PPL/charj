@@ -288,16 +288,19 @@ class CodeGen(tree : Stmt,
           outln(cl + "* _OBJECT_ = cons;");
         }
         if (isDispatcher) {
+          println("building dispatcher for " + t.name)
           outln("switch (*(int32_t*)_OBJECT_) {")
           tab()
           for ((vdp,bind1) <- t.virtualDispatchPoints) {
             if (!vdp.isAbstract) {
               val reversed = bind1.map{ a => Tuple2(a._2,a._1) }
-              val binds2 = reversed.toList ++ binds
-              //println("binds2 = " + binds2)
+              val binds2 = binds ++ reversed.toList
+              println("class type to gen =  " + vdp.getType())
+              println("binds2 = " + binds2)
               val clname = genClassName(vdp, binds2)
               if (clsInstVOI.get(clname).isEmpty) clsInstVOI.put(clname,getNextVOI())
               val voi = clsInstVOI.get(clname).get
+              println("gen concrete name = " + defName)
               val concretename = genDefNameClass(vdp, binds2, defName)
               outln("case " + voi + ": { " + concretename + "(" +
                     "(" + clname + "*) _OBJECT_" +
@@ -306,6 +309,7 @@ class CodeGen(tree : Stmt,
                     "); } break;")
             }
           }
+          println("finished dispatcher for " + t.name)
           untab()
           outln("}")
         } else {
@@ -353,6 +357,10 @@ class CodeGen(tree : Stmt,
           else
             assign = " = (" + genType(typ, binds) + ")" + outVar
             //assign = " = (" + genType(typ, binds) + ")&(" + outVar + ")"
+        } else {
+          // we need to call the default constructor
+          ///if (!BasicTypes.isBasicTerm(Unifier(true).subst(typ.get.full, binds)))
+          ///assign = " = (" + genType(typ, binds) + ")" + genDefNameBaseCons(typ.get, binds, 
         }
         outln(genType(typ, binds) + " " + genDeclName(name) + assign + ";")
       }
@@ -573,7 +581,9 @@ class CodeGen(tree : Stmt,
             case BaseScope(_,_,_) => {
               if (hasGenTerm != null) instDefToGen += Tuple2(defStmt,expr.function_bindings)
               if (t.isCons && isHeapCons) genDefNameBaseConsNew(t.cons,expr.function_bindings ++ b,defNameG)
-              else if (t.isCons) genDefNameBaseCons(t.cons,expr.function_bindings ++ b,defNameG)
+              else if (t.isCons) {
+                genDefNameBaseCons(t.cons,expr.function_bindings ++ b,defNameG)
+              }
               else genDefNameBase(defNameG)
             }
           }

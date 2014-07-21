@@ -25,7 +25,7 @@ object Parse extends StandardTokenParsers with App {
 
   // set verbosity to true for testing
   import BaseContext.verbose
-  verbose = false
+  verbose = true
 
   // assume flattened file names here
   val lstIncludes : ListBuffer[String] = ListBuffer[String]()
