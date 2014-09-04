@@ -1,5 +1,6 @@
 include "system.cp";
 include "ref.cp";
+include "tuple.cp";
 
 class Node[T] {
   val item : T;
@@ -38,8 +39,9 @@ def addToStack(x : Stack[int], n : int) {
 
 def main() {
   var y : Stack[int] = ListStack[int]();
-  addToStack(y, 5);
-  print(y.size);
+  var zz : Tuple[Stack[int], int] = _(y, 10);
+  addToStack(zz._1, 5);
+  print(zz._1.size);
   y.push(100);
   y.push(101);
   while (y.size > 0)
