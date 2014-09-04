@@ -83,6 +83,8 @@ object Parse extends StandardTokenParsers with App {
 
     println("Static checker finished")
 
+    (new ConstantProp(tree)).start();
+
     // purely an informative pass over the tree for debugging
     if (true || verbose) {
       val info = new TreeInfo(tree)
