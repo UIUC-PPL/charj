@@ -8,4 +8,4 @@ class Ref[T] {
 }
 
 // this is considered a special operator
-def ^[M](t : M) : Ref[M] { return Ref[M](t); }
+//def ^[M](t : M) : Ref[M] { return Ref[M](t); }

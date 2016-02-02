@@ -83,13 +83,13 @@ object Parse extends StandardTokenParsers with App {
 
     println("Static checker finished")
 
-    (new ASTtoCFG(tree)).start();
+    //(new ASTtoCFG(tree)).start();
 
     // purely an informative pass over the tree for debugging
-    if (true || verbose) {
-      val info = new TreeInfo(tree)
-      info.start()
-    }
+    //if (true || verbose) {
+    //val info = new TreeInfo(tree)
+    //info.start()
+    //}
 
     if (verbose) println("--- front end complete ---")
   }

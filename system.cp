@@ -8,3 +8,4 @@ def exit(i : int) { }
 
 // special print functions for now
 def print[T](t : T) {  }
+def printInt(t : int) {  }

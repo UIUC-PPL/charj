@@ -233,7 +233,7 @@ class CodeGen(tree : Stmt,
     if (!t.isEntry) {
       if (true) {
         if (!t.isConstructor) {
-          outlnbb(genType(t.ret, binds));
+          outlnbb(genType(t.ret, binds, true));
         } else {
           if (isHeapCons) outlnbb(cl + "**");
           else outlnbb(cl);
@@ -261,7 +261,7 @@ class CodeGen(tree : Stmt,
         tab()
         // generate body of def
         if (t.enclosingClass == null &&
-            (t.name == "exit" || t.name == "exitError" || t.name == "print")) {
+            (t.name == "exit" || t.name == "exitError" || t.name == "print" || t.name == "printInt")) {
               genSpecialDefBody(t.name, subs);
             }
         if (t.isConstructor) {
@@ -302,7 +302,9 @@ class CodeGen(tree : Stmt,
               val voi = clsInstVOI.get(clname).get
               println("gen concrete name = " + defName)
               val concretename = genDefNameClass(vdp, binds2, defName)
-              outln("case " + voi + ": { " + concretename + "(" +
+              outln("case " + voi + ": { " + 
+                    (if (!t.ret.isEmpty) "return " else "") +
+                    concretename + "(" +
                     "(" + clname + "*) _OBJECT_" +
                     (if (!t.nthunks.isEmpty && t.nthunks.get.length != 0) "," else "") +
                     genInputsName(t.nthunks, binds) +
@@ -335,6 +337,7 @@ class CodeGen(tree : Stmt,
   def genSpecialDefBody(name : String, t1 : Term) {
     name match {
       case "exit" => outln("exit(_decl_i);")
+      case "printInt" => outln("printf(\"%d\\n\",_decl_t);")
       case "print" => {
         val n : String = t1.asInstanceOf[Fun].terms(0).getName
         n match {
@@ -416,7 +419,9 @@ class CodeGen(tree : Stmt,
           outln("return;")
         } else {
           val outCond = genExpr(expr.get, binds)
-          outln("return " + outCond + ";")
+          val ii = genImm()
+          outln(genRType(expr.get.sym,binds,false) + " " + ii + " = *(" + outCond + ");")
+          outln("return " + ii + ";")
         }
       }
       case t@ForStmt(decls, expr1, cont, stmt) => {
@@ -515,6 +520,8 @@ class CodeGen(tree : Stmt,
   def genFunExpr(expr : Expression, b : List[(Term,Term)], isHeapCons : Boolean) : String = {
     expr match {
       case t@FunExpr(name,gens,param) => {
+        if (verbose)
+          println("generating FunExpr, name = " + name + ", gens = " + gens)
         var defNameG = name
         var hasGenTerm : Term = null
         var defStmt : DefStmt = null
