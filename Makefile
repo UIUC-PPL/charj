@@ -5,13 +5,14 @@ CC = scalac-2.10
 SRC=$(wildcard *.scala)
 OUT=$(SRC:.scala=.stamp)
 
-#%.stamp: %.scala
+all: bin/charj.jar
 
-build: $(SRC)
-	$(CC) $(CFLAGS) $^ -d classes
+bin/charj.jar: $(SRC)
+	sbt assembly
+	mv target/scala-*/charj-assembly-*.jar bin/charj.jar
 
 test:
 	./compile.sh system.cp
 
 clean:
-	-rm -rf classes/*
+	-rm -rf target/* bin/charj.jar

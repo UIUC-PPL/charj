@@ -1,0 +1,7 @@
+*~
+charmrun
+output/
+target/
+documentation/build
+bin/charj.jar
+project/build.properties
