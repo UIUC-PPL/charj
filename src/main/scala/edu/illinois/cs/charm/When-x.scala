@@ -1,4 +1,4 @@
-package FrontEnd
+package edu.illinois.cs.charm
 
 // TODO generate body of receivers (might do in secondary pass)
 // TODO generate SDAG code to call receivers

@@ -1,4 +1,4 @@
-package FrontEnd
+package edu.illinois.cs.charm
 
 import Parse.verbose
 import java.nio.file.{Paths, Files}
@@ -29,13 +29,14 @@ object Driver extends App {
     sys.exit(0)
   }
   // get the environment variables
-  val charj = Paths.get(Properties.envOrElse("CHARJ_HOME", "."))
-  val cxx = Properties.envOrElse("CXX", "cxx")
-  val xiBldr = Properties.envOrNone("XI_BUILDER_HOME").map(Paths.get(_))
-  val xlat = xiBldr.map(_.resolve("src/xlat-i"))
-  val charmc = Properties.envOrNone("CHARM_HOME").map(Paths.get(_).resolve("bin/charmc"))
-  val ready = (xiBldr.isDefined && charmc.isDefined) || seq
-  if (!ready) println("WARNING : XI_BUILDER_HOME and/or CHARM_HOME is undefined, may be unable to generate binaries.")
+  val charj = Properties.envOrNone("CHARJ_HOME").map(Paths.get(_))
+  val cxx = Properties.envOrElse("CXX", "c++")
+  val cflags = Properties.envOrElse("CFLAGS", "") + "-w"
+  val charm = Properties.envOrNone("CHARM_HOME").map(Paths.get(_))
+  val xlat = charm.map(_.resolve("src/xlat-i"))
+  val charmc = charm.map(_.resolve("bin/charmc"))
+  val ready = charj.isDefined && (charmc.isDefined || seq)
+  if (!ready) println("WARNING : CHARJ_HOME or CHARM_HOME is undefined, may be unable to generate binaries.")
   // if the outdir doesn't exist, create it
   if (!Files.exists(outdir)) Files.createDirectory(outdir)
   // add the first argument as an include
@@ -91,14 +92,14 @@ object Driver extends App {
 
   if (ready) {
     val result : Int = if (seq) {
-      Process(s"""$cxx -O3 -std=c++11 -I${charj.resolve("runtime")} generate.cc -o generate""", outdir.toFile) !
+      Process(s"""$cxx -O3 -std=c++11 -I${charj.get.resolve("include")} generate.cc -o generate""", outdir.toFile) !
     } else {
-      val objFiles = ((List("xi-main.o", "CaseList.o", "Forall.o", "SdagEntry.o", "xi-AstNode.o", "xi-Member.o", "xi-symbol.o", "Case.o", "For.o", "sdag-globals.o", "xi-BlockConstruct.o", "xi-Message.o", "xi-Template.o", "CEntry.o", "If.o", "Serial.o", "xi-Chare.o", "xi-Module.o", "xi-Type.o", "CParsedFile.o", "SList.o", "xi-Construct.o", "xi-Parameter.o", "xi-util.o", "CSdagConstruct.o", "IntExpr.o", "Template.o", "xi-Entry.o", "xi-scan.o", "xi-Value.o", "CStateVar.o", "OList.o", "When.o", "xi-grammar.tab.o", "xi-SdagCollection.o", "Else.o", "Overlap.o", "While.o", "xi-SdagConstruct.o").map(obj => xiBldr.get.resolve(s"tmp/$obj"))) mkString " ")
+      val objFiles = ((List("xi-main.o", "CaseList.o", "Forall.o", "SdagEntry.o", "xi-AstNode.o", "xi-Member.o", "xi-symbol.o", "Case.o", "For.o", "sdag-globals.o", "xi-BlockConstruct.o", "xi-Message.o", "xi-Template.o", "CEntry.o", "If.o", "Serial.o", "xi-Chare.o", "xi-Module.o", "xi-Type.o", "CParsedFile.o", "SList.o", "xi-Construct.o", "xi-Parameter.o", "xi-util.o", "CSdagConstruct.o", "IntExpr.o", "Template.o", "xi-Entry.o", "xi-scan.o", "xi-Value.o", "CStateVar.o", "OList.o", "When.o", "xi-grammar.tab.o", "xi-SdagCollection.o", "Else.o", "Overlap.o", "While.o", "xi-SdagConstruct.o").map(obj => charj.get.resolve(s"obj/$obj"))) mkString " ")
 
-      Process(s"""$cxx -g -c -DXI_LIBRARY -o generate_ci.o generate_ci.cc ${if (msa) "-D__MSA__" else ""} -stdlib=libstdc++ -I${xlat.get} -I${xlat.get}/sdag -I${xlat.get}/sdag/constructs -Wno-c++11-compat-deprecated-writable-strings""", outdir.toFile) #&&
-      Process(s"$cxx -g -o generate_ci generate_ci.o $objFiles", outdir.toFile) #&&
+      Process(s"""$cxx -g -c -o generate_ci.o generate_ci.cc ${cflags} ${if (msa) "-D__MSA__" else ""} -I${charm.get.resolve("include")} -I${xlat.get} -I${xlat.get}/sdag -I${xlat.get}/sdag/constructs""", outdir.toFile) #&&
+      Process(s"$cxx -g -o generate_ci generate_ci.o $objFiles ${cflags}", outdir.toFile) #&&
       Process(s"./generate_ci", outdir.toFile) #&&
-      Process(s"""${charmc.get} -DXI_LIBRARY ${if (msa) "-module msa -D__MSA__" else ""} -std=c++11 -I${charj.resolve("runtime")} -D__PARALLEL__ -O3 generate.cc -o generate_charm""", outdir.toFile) !
+      Process(s"""${charmc.get} ${if (msa) "-module msa -D__MSA__" else ""} -std=c++11 -I${charj.get.resolve("include")} -D__PARALLEL__ -O3 generate.cc -o generate_charm""", outdir.toFile) !
     }
 
     if (result != 0) sys.exit(result)

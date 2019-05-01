@@ -1,4 +1,4 @@
-package FrontEnd
+package edu.illinois.cs.charm
 
 import scala.util.parsing.combinator.syntactical._
 import scala.util.parsing.combinator._
@@ -51,7 +51,7 @@ class Parse extends StandardTokenParsers {
   }
 
   def parseRecur(file : String, paths : Seq[String]) : AstTraversable = {
-    val lst : List[String] = List(file, "base/" + file) ++ paths.map(_ + "/" + file)
+    val lst : List[String] = List(file, "src/main/charj/" + file) ++ paths.map(_ + "/" + file)
 
     for (fstr <- lst) {
       val f = new File(fstr)

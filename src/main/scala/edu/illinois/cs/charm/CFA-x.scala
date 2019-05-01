@@ -1,4 +1,4 @@
-package FrontEnd
+package edu.illinois.cs.charm
 
 package ControlFlow {
   import scala.collection.mutable.{Map,ListBuffer,Set,Stack}

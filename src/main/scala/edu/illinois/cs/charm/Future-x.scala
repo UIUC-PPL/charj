@@ -1,4 +1,4 @@
-package FrontEnd
+package edu.illinois.cs.charm
 
 object FutureConversion {
   import SystemIdentifier.namespace

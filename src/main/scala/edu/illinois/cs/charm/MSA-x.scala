@@ -1,4 +1,4 @@
-package FrontEnd
+package edu.illinois.cs.charm
 
 import scala.collection.mutable.{HashMap,Iterable,ListBuffer,Stack,Set,Queue}
 import scala.util.parsing.input.{Positional,Position}

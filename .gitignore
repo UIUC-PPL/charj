@@ -1,7 +1,8 @@
 *~
-charmrun
+.idea/
 output/
 target/
-documentation/build
-bin/charj.jar
+docs/build
 project/build.properties
+bin/
+obj/

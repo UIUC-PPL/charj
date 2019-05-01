@@ -1,4 +1,4 @@
-package FrontEnd
+package edu.illinois.cs.charm
 
 import scala.util.parsing.combinator.syntactical._
 import scala.util.parsing.combinator._
