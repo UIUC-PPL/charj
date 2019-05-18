@@ -1,0 +1,1 @@
+To begin using Charj, run ./build.sh and follow the instructions at the end. Make sure CHARM_HOME is directed to a copy of Charm with the xi-builder interface (included in charm/master) and that you have a copy of SBT.

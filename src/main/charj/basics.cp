@@ -122,6 +122,7 @@ system def make_proxy_array2[T](x : T) : ProxyArray2[T] { return null; }
 system def make_proxy_array3[T](x : T) : ProxyArray3[T] { return null; }
 
 system def my_pe() : int { "CkMyPe()"; }
+system def num_pes() : int { "CkNumPes()"; }
 system def pexit() { "CkExit()"; }
 
 // classes for multi-dimensional chare arrays indexing

@@ -66,7 +66,7 @@ private class DefAnalysis(tree : DefAst, verbose : Boolean) {
               }
             }
           }
-          case _ => throw new RuntimeException("unable to analyze call to ${m.t.eres}!")
+          case _ => println(s"WARNING : sync analysis was unable to analyze call to ${m.t.eres}!")
         }
       }
       case _ => ;
