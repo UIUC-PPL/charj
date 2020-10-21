@@ -5,7 +5,8 @@ val error_threshold : double = 0.004;
 mainchare class Main {
   val prox : ProxyArray2[Jacobi];
   val rows : int, cols : int;
-  val iters : int = 0, maxIter : int = 100;
+  val iters : int = 0;
+  var maxIter : int = 100;
 
   entry def this(args : Array[string]) {
     if (args.size < 6) {
@@ -19,7 +20,7 @@ mainchare class Main {
     val by : int = stoi(args[4]);
     maxIter = stoi(args[5]);
 
-    val debug : boolean = false;
+    var debug : boolean = false;
     if (args.size == 7) debug = stoi(args[6]) == 1;
 
     println("arguments: " +
@@ -51,7 +52,7 @@ type Direction { Left, Right, Top, Bottom }
 
 chare array2d class Jacobi {
   val mainProxy : Proxy[Main];
-  val new_arr : Array2[double], old_arr : Array2[double];
+  var new_arr : Array2[double], old_arr : Array2[double];
   val debug : boolean;
 
   val rows : int, cols : int;
@@ -61,7 +62,8 @@ chare array2d class Jacobi {
   val is : int = 1,    js : int = 1;
   val ie : int = bx+1, je : int = by+1;
 
-  val neighbors : int = 4, count : int = 0;
+  val neighbors : int = 4;
+  var count : int = 0;
 
   def this(=mainProxy : Proxy[Main],
            =rows : int, =cols : int,
@@ -181,8 +183,9 @@ chare array2d class Jacobi {
   }
 
   def kernel() : double {
-    val diff : double = 0.0, tempIth : double = 0.0;
-    val max_err : double = 0.0;
+    var diff : double = 0.0;
+    var tempIth : double = 0.0;
+    var max_err : double = 0.0;
 
     for (var i : int = is; i < ie; i++)
       for (var j : int = js; j < je; j++) {
@@ -193,7 +196,7 @@ chare array2d class Jacobi {
         new_arr[i,j] = tempIth;
       }
 
-    //println("max_err = " + max_err.toString());
+    println("max_err = " + max_err.toString());
 
     var prev_new : Array2[double] = new_arr;
     new_arr = old_arr;
