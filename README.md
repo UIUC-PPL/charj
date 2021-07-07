@@ -1,1 +1,7 @@
-To begin using Charj, run ./build.sh and follow the instructions at the end. Make sure CHARM_HOME is directed to a copy of Charm with the xi-builder interface (included in charm/master) and that you have a copy of SBT.
+Charj is a language for productive parallel programming, based on the Charm++ runtime system. While it is experimental in nature, it can be used to build and compile simple programs.
+
+To begin using Charj, you will need a (recent) version of Charm++ present at `CHARM_HOME`, a JDK installation, and an SBT installation. Then, run the `./build.sh` script from this repository, and refer to the instructions it generates throughout its execution.
+
+Note, Charj's syntax has undergone numerous changes throughout the years. Where it was, historically, Java-based, it is now Scala-based. We occasionally use the term (Scala-)Charj to refer to the current iteration.
+
+The most comprehensive documentation for Charj is [Aaron Becker's PhD thesis](http://charm.cs.illinois.edu/newPapers/12-44/paper.pdf). While its examples are based on the Java-based iteration of Charj, its ideas translate to the modern version of Charj found here.
